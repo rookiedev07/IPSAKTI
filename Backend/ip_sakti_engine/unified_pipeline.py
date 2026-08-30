@@ -43,6 +43,306 @@ GLOSSARIES = {
 
 
 # ==============================================================================
+# DECOUPLED DOMAIN REGISTRY
+# ==============================================================================
+DOMAIN_REGISTRY = {
+    "EU_COSMETIC_REGULATORY": {
+        "id": "EU_COSMETIC_REGULATORY",
+        "label": "EU Cosmetic Regulation (EC) No 1223/2009",
+        "jurisdiction": "EU",
+        "squad": [
+            "EU Cosmetic Regulatory Lead & Compliance Strategist",
+            "EU Cosmetic Safety Assessor & CPSR/PIF Architect",
+            "EU CPNP Notification & Formulation Specialist",
+            "EU Responsible Person (RP) & SUE Vigilance Officer",
+            "EU Statutory Verifier (Regulation 1223/2009 Guard)"
+        ],
+        "allowed_prefixes": ["eu-reg-1223-2009-"],
+        "forbidden_terms": [
+            "Biological Diversity Act", "Section 6(1)", "NBA", "Rule 158B", 
+            "Patents Act 1970", "Section 3(p)", "Section 3(d)", "Form 25D", "Schedule T"
+        ],
+        "statutory_mappings": """
+        - Responsible Person (RP): Article 4
+        - Safety Assessment & CPSR (Part A/B): Article 10 & Annex I
+        - Product Information File (PIF): Article 11 (Retained at RP address, NOT submitted)
+        - Pre-market Notification (CPNP): Article 13
+        - Nanomaterials (6-Month Prior Notice): Article 16
+        - SUE / Cosmetovigilance: Article 23
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"Responsible Person.*Article\s*(?:[1-35-9]|1\(3\)|8)\b", re.I), "error": "Responsible Person misattributed (must be Article 4)"},
+            {"regex": re.compile(r"(?:Adverse Reaction|SUE|Cosmetovigilance).*Article\s*(?:[1-9]|1[0-2]|1[4-9]|2[0-24-9])\b", re.I), "error": "SUE / Adverse Reactions misattributed (must be Article 23)"},
+            {"regex": re.compile(r"Nanomaterial.*Article\s*(?:[1-9]|1[0-5]|1[7-9]|2[0-9])\b", re.I), "error": "Nanomaterials misattributed (must be Article 16)"},
+            {"regex": re.compile(r"(?:PIF|Product Information File).*Article\s*(?:[1-9]|10|1[2-9]|2[0-9])\b", re.I), "error": "PIF misattributed (must be Article 11)"}
+        ]
+    },
+    "INTERNATIONAL_TRADEMARK": {
+        "id": "INTERNATIONAL_TRADEMARK",
+        "label": "Madrid System for International Registration of Marks",
+        "jurisdiction": "International",
+        "squad": [
+            "Madrid Protocol Brand Protection Strategist",
+            "WIPO Global Brand Database Researcher",
+            "Nice Classification Class 5 Specification Architect",
+            "MM2 International Application Executor",
+            "Madrid Protocol & Local Office Conflict Verifier"
+        ],
+        "allowed_prefixes": ["intl-wipo-madrid", "in-tm-act-1999"],
+        "forbidden_terms": [
+            "Biological Diversity Act", "Section 6(1)", "Rule 158B", "CPSR", "CPNP", "Cosmetovigilance", "Annex I"
+        ],
+        "statutory_mappings": """
+        - Basic Application / Base Mark: National IP Office of Origin (Section 18 / Form TM-A in India)
+        - International Application: Madrid Protocol Article 2 & Article 3 via WIPO International Bureau
+        - Designation of Contracting Parties: Madrid Protocol Article 3bis
+        - Central Attack / Dependency Period: 5 years under Madrid Protocol Article 6
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:Biological Diversity Act|Section 6\(1\)|NBA)", re.I), "error": "NBA approval is not applicable to Trademark applications."},
+            {"regex": re.compile(r"(?:CPSR|PIF|CPNP|SUE)", re.I), "error": "Cosmetic regulatory artifacts cannot appear in Trademark dossiers."}
+        ]
+    },
+    "AYURVEDA_PATENT": {
+        "id": "AYURVEDA_PATENT",
+        "label": "Indian Patents Act & Traditional Knowledge Clearance",
+        "jurisdiction": "India",
+        "squad": [
+            "Registered Patent Attorney (Life Sciences)",
+            "TKDL Prior-Art & Classical Samhita Researcher",
+            "Non-Obvious Synergistic Claims Architect",
+            "Patent Specification & Form 1/2 Executor",
+            "Statutory Patentability Verifier (Sec 3(p)/3(d))"
+        ],
+        "allowed_prefixes": ["in-patents-act-", "in-bd-act-", "in-tkdl", "intl-pct-", "intl-wipo-pct"],
+        "forbidden_terms": [
+            "EU Regulation 1223/2009", "CPNP", "CPSR", "Responsible Person under Article 4"
+        ],
+        "statutory_mappings": """
+        - Traditional Knowledge Bar: Section 3(p) of Patents Act 1970
+        - Enhanced Efficacy Requirement: Section 3(d) of Patents Act 1970
+        - Prior NBA Approval: Section 6(1) of Biological Diversity Act 2002 (Form III)
+        - Foreign Access: Section 3 of Biological Diversity Act 2002 (Form I)
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:EU Regulation 1223\/2009|CPNP|CPSR)", re.I), "error": "EU cosmetic rules cannot appear in Indian Patent dossiers."}
+        ]
+    },
+    "AYUSH_MANUFACTURING": {
+        "id": "AYUSH_MANUFACTURING",
+        "label": "Indian AYUSH / ASU Manufacturing Licensing (Drugs & Cosmetics Rules — Rule 158B)",
+        "jurisdiction": "India",
+        "squad": [
+            "AYUSH Regulatory & Licensing Strategist",
+            "First Schedule Authoritative Pharmacopoeia Researcher",
+            "Form 25D Manufacturing Dossier Architect",
+            "State Licensing Authority (SLA) Application Executor",
+            "Schedule T Good Manufacturing Practices (GMP) Verifier"
+        ],
+        "allowed_prefixes": ["in-dc-rules-158b", "in-dc-act-1940", "in-magic-remedies-act-"],
+        "forbidden_terms": [
+            "EU Regulation 1223/2009", "CPNP", "CPSR", "21 CFR 312", "Madrid Protocol"
+        ],
+        "statutory_mappings": """
+        - Classical ASU Formulations: Rule 158B(I)(A) allows Form 25D licensing based on First Schedule authoritative texts without clinical trials
+        - Patent or Proprietary ASU Medicines: Rule 158B(I)(B) governs novel compositions requiring safety and pilot toxicity data
+        - Good Manufacturing Practices: Schedule T compliance
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:EU Regulation 1223\/2009|CPNP|CPSR)", re.I), "error": "EU cosmetic rules cannot appear in AYUSH manufacturing dossiers."}
+        ]
+    },
+    "FOOD_FSSAI": {
+        "id": "FOOD_FSSAI",
+        "label": "FSSAI (Ayurveda Aahar) Regulations, 2022 & Dietary Food Safety Pathway",
+        "jurisdiction": "India",
+        "squad": [
+            "FSSAI & Ayurveda Aahar Compliance Strategist",
+            "First Schedule Ayurvedic Culinary Text Researcher",
+            "Food Safety & Permissible Additives Architect",
+            "FSSAI Food Business Licensing Dossier Executor",
+            "Non-Curative Labeling & DMR(OA) Act Verifier"
+        ],
+        "allowed_prefixes": ["in-fssai-ayurveda-aahar", "in-fssai-", "in-magic-remedies-act-"],
+        "forbidden_terms": [
+            "EU Regulation 1223/2009", "CPNP", "CPSR", "21 CFR 312", "Rule 158B"
+        ],
+        "statutory_mappings": """
+        - Recipe Authentication: Formulated strictly in accordance with recognized Ayurvedic texts
+        - Non-Curative Claims: Prohibits claims to cure, prevent, or treat any disease
+        - Food Safety: Complies with permissible additives and contaminants limits
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:cure|curing|treat|treatment)\s+(?:severe|clinical|chronic)?\s*(?:depression|cancer|diabetes|anxiety)", re.I), "error": "Curative disease claims are strictly barred under FSSAI Ayurveda Aahar Regulations."}
+        ]
+    },
+    "ABS_BIODIVERSITY": {
+        "id": "ABS_BIODIVERSITY",
+        "label": "Biological Diversity Act Access & Benefit Sharing (ABS) Compliance (NBA Form I/III)",
+        "jurisdiction": "India",
+        "squad": [
+            "National Biodiversity Authority (NBA/ABS) Senior Counsel",
+            "Biological Resource Access & State Board (SBB) Researcher",
+            "Benefit-Sharing Agreement (0.1%-0.5%) Architect",
+            "NBA Form I / Form III Application Executor",
+            "Biological Diversity Act 2002/2023 Statutory Verifier"
+        ],
+        "allowed_prefixes": ["in-bd-act-2002", "intl-cbd-nagoya", "in-patents-act-"],
+        "forbidden_terms": [
+            "EU Regulation 1223/2009", "CPNP", "CPSR", "21 CFR 312", "Rule 158B"
+        ],
+        "statutory_mappings": """
+        - Foreign Access: Section 3 Form I prior approval for non-Indian entities
+        - Patent Approval: Section 6(1) Form III prior approval before patent grant / foreign filing
+        - Benefit Sharing: 0.1% to 0.5% benefit-sharing agreement
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:EU Regulation 1223\/2009|CPNP|CPSR)", re.I), "error": "EU cosmetic rules cannot appear in NBA biodiversity dossiers."}
+        ]
+    },
+    "US_FDA_DRUG": {
+        "id": "US_FDA_DRUG",
+        "label": "US FDA Botanical Drug Development / IND Pathway (21 CFR Part 312)",
+        "jurisdiction": "US",
+        "squad": [
+            "US FDA Botanical Regulatory Specialist",
+            "IND & Clinical Protocol Development Lead",
+            "Botanical Raw Material & CMC Authentication Architect",
+            "FDA 21 CFR 312 Submission Executor",
+            "US Regulatory Citation & Clinical Risk Verifier"
+        ],
+        "allowed_prefixes": ["us-fda-21cfr312", "us-fda-", "us-uspto-"],
+        "forbidden_terms": [
+            "EU Regulation 1223/2009", "CPNP", "CPSR", "Rule 158B", "Form 25D", "Schedule T"
+        ],
+        "statutory_mappings": """
+        - IND Application: 21 CFR § 312 Form FDA 1571 for US clinical trials
+        - CMC Controls: Batch-to-batch consistency and fingerprinting
+        - Clinical Progression: Phase I, II, III trials leading to NDA
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:Rule 158B|Form 25D|Schedule T)", re.I), "error": "Indian AYUSH licensing rules cannot appear in US FDA drug dossiers."}
+        ]
+    },
+    "US_FDA_DIETARY_SUPPLEMENT": {
+        "id": "US_FDA_DIETARY_SUPPLEMENT",
+        "label": "US FDA Dietary Supplement Compliance & cGMP (21 CFR Part 111 & DSHEA)",
+        "jurisdiction": "US",
+        "squad": [
+            "US Dietary Supplement Regulatory Strategist",
+            "DSHEA 1994 Structure/Function Claims Researcher",
+            "21 CFR Part 111 cGMP Compliance Architect",
+            "FDA Facility & Labeling Executor",
+            "FDA Disclaimer & Safety Standard Verifier"
+        ],
+        "allowed_prefixes": ["us-fda-21cfr111", "us-fda-", "in-dc-rules-158b"],
+        "forbidden_terms": [
+            "EU Regulation 1223/2009", "CPNP", "CPSR", "21 CFR 312 IND"
+        ],
+        "statutory_mappings": """
+        - cGMP Mandate: 21 CFR Part 111 manufacturing and holding standards
+        - Structure/Function Claims: Permitted with mandatory FDA disclaimer; disease claims barred
+        - 30-Day Notification: Claims notified to FDA under DSHEA
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:cure|curing|prevent|preventing|treat|treating)\s+(?:disease|cancer|diabetes)", re.I), "error": "Disease cure/treatment claims are illegal for dietary supplements under DSHEA 1994."}
+        ]
+    },
+    "EU_THMPD": {
+        "id": "EU_THMPD",
+        "label": "EU Traditional Herbal Medicinal Products Registration (Directive 2004/24/EC & THMPD)",
+        "jurisdiction": "EU",
+        "squad": [
+            "EU Herbal Medicines Regulatory Specialist",
+            "THMPD 30-Year Traditional Use Evidence Researcher",
+            "EMA / HMPC Community Monograph Architect",
+            "EU National Competent Authority Dossier Executor",
+            "EU Statutory Directive Citation Verifier"
+        ],
+        "allowed_prefixes": ["eu-directive-2004-24-ec", "eu-ema-hmpc-", "eu-"],
+        "forbidden_terms": [
+            "CPNP", "Annex I CPSR", "Rule 158B", "Section 3(p)", "21 CFR 312"
+        ],
+        "statutory_mappings": """
+        - Simplified Registration: Directive 2004/24/EC simplified registration
+        - Traditional Use: 30 years continuous use, including 15 years within the EU
+        - Quality Dossier: Conforming to European Pharmacopoeia and EU GMP
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:CPNP|Annex I CPSR)", re.I), "error": "Cosmetic Regulation artifacts cannot appear in THMPD medicinal dossiers."}
+        ]
+    },
+    "INTERNATIONAL_PATENT": {
+        "id": "INTERNATIONAL_PATENT",
+        "label": "WIPO PCT International Patent Application & National Phase Entry",
+        "jurisdiction": "International",
+        "squad": [
+            "WIPO PCT International Patent Strategist",
+            "International Search Authority (ISA) Prior-Art Researcher",
+            "PCT Chapter I/II Claims Harmonization Architect",
+            "PCT/RO/101 International Filing Executor",
+            "WIPO GRATK Disclosure Treaty Verifier"
+        ],
+        "allowed_prefixes": ["intl-wipo-pct", "intl-wipo-gratk-2024", "in-patents-act-", "in-cdsco-phytopharmaceutical"],
+        "forbidden_terms": [
+            "EU Regulation 1223/2009", "CPNP", "CPSR", "Rule 158B", "Form 25D"
+        ],
+        "statutory_mappings": """
+        - Unified PCT Filing: Preserves priority across 158 contracting states
+        - Genetic Resource Disclosure: WIPO GRATK Treaty 2024 mandatory disclosure
+        - Section 39 / BDA Sec 6(1): Foreign filing license or prior NBA approval
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:EU Regulation 1223\/2009|CPNP|CPSR)", re.I), "error": "EU cosmetic rules cannot appear in WIPO patent dossiers."}
+        ]
+    },
+    "AYUSH_PRODUCT_REGULATION": {
+        "id": "AYUSH_PRODUCT_REGULATION",
+        "label": "CDSCO Phytopharmaceutical Drug Development & Clinical Regulatory Pathway (Rule 2(eb))",
+        "jurisdiction": "India",
+        "squad": [
+            "Phytopharmaceutical Drug Regulatory Lead",
+            "4-Marker Bioactive Chemical Fingerprinting Researcher",
+            "CDSCO IND & Phase I/II Clinical Protocol Architect",
+            "CT Rules Form CT-04 Application Executor",
+            "CDSCO Subject Expert Committee (SEC) Verifier"
+        ],
+        "allowed_prefixes": ["in-cdsco-phytopharmaceutical", "in-dc-act-1940", "in-patents-act-"],
+        "forbidden_terms": [
+            "EU Regulation 1223/2009", "CPNP", "CPSR", "21 CFR 312"
+        ],
+        "statutory_mappings": """
+        - Phytopharmaceutical Definition: Minimum 4 bioactive markers under Rule 2(eb)
+        - Clinical Trials: Phase I/II/III clinical trials under CT Rules 2019
+        - SEC Approval: CDSCO Subject Expert Committee clearance
+        """,
+        "verifier_assertions": [
+            {"regex": re.compile(r"(?:EU Regulation 1223\/2009|CPNP|CPSR)", re.I), "error": "EU cosmetic rules cannot appear in CDSCO phytopharmaceutical dossiers."}
+        ]
+    },
+    "MULTI_DOMAIN": {
+        "id": "MULTI_DOMAIN",
+        "label": "Dual Indian Patent (Sec 3(p)/3(d)) & Cross-Border IPR Compliance (NBA Form III)",
+        "jurisdiction": "Both",
+        "squad": [
+            "Cross-Border Patent & Life Sciences Counsel",
+            "TKDL Prior-Art & Global Search Specialist",
+            "Synergistic Formulation & Enhanced Efficacy Architect",
+            "Dual Indian & Foreign Patent Prosecution Executor",
+            "Section 3(p) & NBA Form III Statutory Verifier"
+        ],
+        "allowed_prefixes": ["in-", "intl-", "us-", "eu-"],
+        "forbidden_terms": [],
+        "statutory_mappings": """
+        - Dual Jurisdiction Governance: Harmonizes domestic and foreign compliance
+        - Mandatory NBA Approval: Section 6(1) Form III before foreign filing
+        """,
+        "verifier_assertions": []
+    }
+}
+
+
+# ==============================================================================
 # PART 1 & 2: DETERMINISTIC JURISDICTION RESOLUTION HIERARCHY
 # ==============================================================================
 def resolve_jurisdiction_layer(prompt_text: str, requested_toggle: Optional[str] = None) -> Dict[str, Any]:
@@ -196,118 +496,25 @@ def classify_domain_and_pathway(prompt_text: str, jur_res: Dict[str, Any]) -> Tu
     pathway = "Indian AYUSH / ASU Manufacturing Licensing (Rule 158B)"
     squad = []
 
-    # 0. EU Cosmetic Regulation (EC) No 1223/2009 (Priority Override)
-    if any(w in norm for w in ["1223/2009", "regulation 1223", "pif", "cpnp", "cpsr", "responsible person", "cosmetic product safety report"]) or \
-       ("cosmetic" in norm and any(w in norm for w in ["eu", "europe", "france", "germany", "export", "regulation", "safety assessment", "sue", "nanomaterial", "hair-oil", "skin serum", "serum", "oil"])):
-        domain = "EU_COSMETIC_REGULATORY"
-        pathway = "EU Cosmetic Regulation (EC) No 1223/2009 Compliance & CPSR Safety Assessment"
-        squad = [
-            "EU Cosmetic Regulatory Lead & Compliance Strategist",
-            "EU Cosmetic Safety Assessor & CPSR/PIF Architect",
-            "EU CPNP Notification & Formulation Specialist",
-            "EU Responsible Person (RP) & SUE Vigilance Officer",
-            "EU Statutory Verifier (Regulation 1223/2009 Guard)"
-        ]
+    # =========================================================================
+    # TIER 1: HIGHEST PRECEDENCE — INDIAN IP / PATENT / ABS STATUTES
+    # Explicit patent statutes & provisions OVERRIDE all generic words (brand, Madrid, etc.)
+    # =========================================================================
+    has_tier1_patent = any(w in norm for w in [
+        "section 3(p)", "section 3(d)", "section 3(e)", "3(p)", "3(d)", "3(e)",
+        "patents act", "patent act", "biological diversity act", "nba form iii",
+        "form iii", "form 3", "tkdl", "patentability", "inventive step",
+        "non-patentable", "prior art", "patent application", "patent claim",
+        "patent specification", "patent filing", "patent grant"
+    ]) or ("patent" in norm and not any(w in norm for w in ["patent and trademark office", "patent and trade mark"]))
 
-    # 1. US FDA Drug IND
-    elif "21 cfr 312" in norm or ("fda" in norm and any(w in norm for w in ["ind", "clinical trial", "phase i", "phase ii", "botanical drug", "cder"])):
-        domain = "US_FDA_DRUG"
-        pathway = "US FDA Botanical Drug Development / IND Pathway (21 CFR Part 312)"
-        squad = [
-            "US FDA Botanical Regulatory Specialist",
-            "IND & Clinical Protocol Development Lead",
-            "Botanical Raw Material & CMC Authentication Architect",
-            "FDA 21 CFR 312 Submission Executor",
-            "US Regulatory Citation & Clinical Risk Verifier"
-        ]
+    has_tier1_abs = not has_tier1_patent and any(w in norm for w in [
+        "nba form i", "nba form 1", "benefit sharing", "foreign equity",
+        "foreign company accessing", "access and benefit sharing"
+    ])
 
-    # 2. US FDA Dietary Supplement / DSHEA
-    elif "21 cfr 111" in norm or ("dshea" in norm) or ("fda" in norm and any(w in norm for w in ["dietary supplement", "structure function", "supplement", "cgmp"])):
-        domain = "US_FDA_DIETARY_SUPPLEMENT"
-        pathway = "US FDA Dietary Supplement Compliance & cGMP (21 CFR Part 111 & DSHEA)"
-        squad = [
-            "US Dietary Supplement Regulatory Strategist",
-            "DSHEA 1994 Structure/Function Claims Researcher",
-            "21 CFR Part 111 cGMP Compliance Architect",
-            "FDA Facility & Labeling Executor",
-            "FDA Disclaimer & Safety Standard Verifier"
-        ]
-
-    # 3. EU THMPD (Traditional Herbal Medicinal Products)
-    elif "directive 2004/24/ec" in norm or "thmpd" in norm or ("germany" in norm and "traditional" in norm) or ("eu" in norm and "herbal" in norm and "medicinal" in norm):
-        domain = "EU_THMPD"
-        pathway = "EU Traditional Herbal Medicinal Product Registration (Directive 2004/24/EC & THMPD)"
-        squad = [
-            "EU Herbal Medicines Regulatory Specialist",
-            "THMPD 30-Year Traditional Use Evidence Researcher",
-            "EMA / HMPC Community Monograph Architect",
-            "EU National Competent Authority Dossier Executor",
-            "EU Statutory Directive Citation Verifier"
-        ]
-
-    # 4. International Trademark / Madrid System
-    elif "madrid" in norm or ("trademark" in norm and any(w in norm for w in ["wipo", "international", "australia", "uk", "overseas", "global brand"])):
-        domain = "INTERNATIONAL_TRADEMARK"
-        pathway = "International Trademark Registration via Madrid Protocol (Class 5 / Class 3)"
-        squad = [
-            "Madrid Protocol Brand Protection Strategist",
-            "WIPO Global Brand Database Researcher",
-            "Nice Classification Class 5 Specification Architect",
-            "MM2 International Application Executor",
-            "Madrid Protocol & Local Office Conflict Verifier"
-        ]
-
-    # 5. International Patent / WIPO PCT
-    elif "pct" in norm or "patent cooperation treaty" in norm or ("wipo" in norm and "patent" in norm):
-        domain = "INTERNATIONAL_PATENT"
-        pathway = "WIPO PCT International Patent Application & National Phase Entry"
-        squad = [
-            "WIPO PCT International Patent Strategist",
-            "International Search Authority (ISA) Prior-Art Researcher",
-            "PCT Chapter I/II Claims Harmonization Architect",
-            "PCT/RO/101 International Filing Executor",
-            "WIPO PCT & GRATK Disclosure Treaty Verifier"
-        ]
-
-    # 6. ABS / Biodiversity
-    elif any(w in norm for w in ["abs", "biodiversity", "nba form i", "form 1", "form i", "benefit sharing", "foreign equity", "foreign company accessing"]):
-        domain = "ABS_BIODIVERSITY"
-        pathway = "Biological Diversity Act Access & Benefit Sharing (ABS) Compliance (NBA Form I/III)"
-        squad = [
-            "National Biodiversity Authority (NBA/ABS) Senior Counsel",
-            "Biological Resource Access & State Board (SBB) Researcher",
-            "Benefit-Sharing Agreement (0.1%-0.5%) Architect",
-            "NBA Form I / Form III Application Executor",
-            "Biological Diversity Act 2002/2023 Statutory Verifier"
-        ]
-
-    # 7. Food / FSSAI Ayurveda Aahar
-    elif "fssai" in norm or "ayurveda aahar" in norm or ("food" in norm and "ayurved" in norm):
-        domain = "FOOD_FSSAI"
-        pathway = "FSSAI (Ayurveda Aahar) Regulations 2022 & Dietary Food Safety Pathway"
-        squad = [
-            "FSSAI & Ayurveda Aahar Compliance Strategist",
-            "First Schedule Ayurvedic Culinary Text Researcher",
-            "Food Safety & Permissible Additives Architect",
-            "FSSAI Food Business Licensing Dossier Executor",
-            "Non-Curative Labeling & DMR(OA) Act Verifier"
-        ]
-
-    # 8. Phytopharmaceutical Drug (India CDSCO)
-    elif "phytopharmaceutical" in norm or "rule 2(eb)" in norm or "bioactive marker" in norm:
-        domain = "AYUSH_PRODUCT_REGULATION"
-        pathway = "CDSCO Phytopharmaceutical Drug Development & Clinical Regulatory Pathway (Rule 2(eb))"
-        squad = [
-            "Phytopharmaceutical Drug Regulatory Lead",
-            "4-Marker Bioactive Chemical Fingerprinting Researcher",
-            "CDSCO IND & Phase I/II Clinical Protocol Architect",
-            "CT Rules Form CT-04 Application Executor",
-            "CDSCO Subject Expert Committee (SEC) Verifier"
-        ]
-
-    # 9. Indian Patent / Section 3(p) / 3(d)
-    elif "patent" in norm or "invent" in norm or "prior art" in norm or "section 3" in norm:
-        if mode == "BOTH":
+    if has_tier1_patent:
+        if mode == "BOTH" or "us" in norm or "foreign" in norm or "pct" in norm:
             domain = "MULTI_DOMAIN"
             pathway = "Dual Indian Patent (Sec 3(p)/3(d)) & Cross-Border IPR Compliance (NBA Form III)"
             squad = [
@@ -328,16 +535,125 @@ def classify_domain_and_pathway(prompt_text: str, jur_res: Dict[str, Any]) -> Tu
                 "Statutory Patentability Verifier (Sec 3(p)/3(d))"
             ]
 
-    # 10. Indian Trademark / GI
-    elif "trademark" in norm or "trade mark" in norm or "brand" in norm or "logo" in norm or "gi" in norm:
-        domain = "TRADEMARK"
-        pathway = "Indian Trade Marks Act 1999 Registration & Brand Protection (Class 5/3)"
+    elif has_tier1_abs:
+        domain = "ABS_BIODIVERSITY"
+        pathway = "Biological Diversity Act Access & Benefit Sharing (ABS) Compliance (NBA Form I/III)"
         squad = [
-            "Indian Trademark & Brand Protection Attorney",
-            "Ayurvedic Pharmacopoeia (API) Terminology Researcher",
-            "Class 5 Specification & Distinctiveness Architect",
-            "TM-A Trademark Application Executor",
-            "Section 9 Generic Bar & Section 11 Conflict Verifier"
+            "National Biodiversity Authority (NBA/ABS) Senior Counsel",
+            "Biological Resource Access & State Board (SBB) Researcher",
+            "Benefit-Sharing Agreement (0.1%-0.5%) Architect",
+            "NBA Form I / Form III Application Executor",
+            "Biological Diversity Act 2002/2023 Statutory Verifier"
+        ]
+
+    # =========================================================================
+    # TIER 2: EU COSMETIC REGULATION (EC) No 1223/2009
+    # =========================================================================
+    elif any(w in norm for w in ["1223/2009", "regulation 1223", "pif", "cpnp", "cpsr", "responsible person", "cosmetic product safety report"]) or \
+       ("cosmetic" in norm and any(w in norm for w in ["eu", "europe", "france", "germany", "export", "regulation", "safety assessment", "sue", "nanomaterial", "hair-oil", "skin serum", "serum", "oil"])):
+        domain = "EU_COSMETIC_REGULATORY"
+        pathway = "EU Cosmetic Regulation (EC) No 1223/2009 Compliance & CPSR Safety Assessment"
+        squad = [
+            "EU Cosmetic Regulatory Lead & Compliance Strategist",
+            "EU Cosmetic Safety Assessor & CPSR/PIF Architect",
+            "EU CPNP Notification & Formulation Specialist",
+            "EU Responsible Person (RP) & SUE Vigilance Officer",
+            "EU Statutory Verifier (Regulation 1223/2009 Guard)"
+        ]
+
+    # =========================================================================
+    # TIER 3: TRADEMARK & BRAND PROTECTION (Madrid Protocol / Class 5)
+    # (Evaluated ONLY if Tier 1 and Tier 2 triggers are absent)
+    # =========================================================================
+    elif "madrid" in norm or "class 5" in norm or ("trademark" in norm and any(w in norm for w in ["wipo", "international", "australia", "uk", "overseas", "global brand"])) or any(w in norm for w in ["brand name", "brand protection", "tm-a", "gi tag", "geographical indication"]):
+        if "madrid" in norm or "wipo" in norm or "international" in norm or "australia" in norm:
+            domain = "INTERNATIONAL_TRADEMARK"
+            pathway = "International Trademark Registration via Madrid Protocol (Class 5 / Class 3)"
+            squad = [
+                "Madrid Protocol Brand Protection Strategist",
+                "WIPO Global Brand Database Researcher",
+                "Nice Classification Class 5 Specification Architect",
+                "MM2 International Application Executor",
+                "Madrid Protocol & Local Office Conflict Verifier"
+            ]
+        else:
+            domain = "TRADEMARK"
+            pathway = "Indian Trade Marks Act 1999 Registration & Brand Protection (Class 5/3)"
+            squad = [
+                "Indian Trademark & Brand Protection Attorney",
+                "Ayurvedic Pharmacopoeia (API) Terminology Researcher",
+                "Class 5 Specification & Distinctiveness Architect",
+                "TM-A Trademark Application Executor",
+                "Section 9 Generic Bar & Section 11 Conflict Verifier"
+            ]
+
+    # =========================================================================
+    # TIER 4: SPECIFIC REGULATORY FRAMEWORKS (FDA, THMPD, PCT, FSSAI, AYUSH)
+    # =========================================================================
+    elif "21 cfr 312" in norm or ("fda" in norm and any(w in norm for w in ["ind", "clinical trial", "phase i", "phase ii", "botanical drug", "cder"])):
+        domain = "US_FDA_DRUG"
+        pathway = "US FDA Botanical Drug Development / IND Pathway (21 CFR Part 312)"
+        squad = [
+            "US FDA Botanical Regulatory Specialist",
+            "IND & Clinical Protocol Development Lead",
+            "Botanical Raw Material & CMC Authentication Architect",
+            "FDA 21 CFR 312 Submission Executor",
+            "US Regulatory Citation & Clinical Risk Verifier"
+        ]
+
+    elif "21 cfr 111" in norm or ("dshea" in norm) or ("fda" in norm and any(w in norm for w in ["dietary supplement", "structure function", "supplement", "cgmp"])):
+        domain = "US_FDA_DIETARY_SUPPLEMENT"
+        pathway = "US FDA Dietary Supplement Compliance & cGMP (21 CFR Part 111 & DSHEA)"
+        squad = [
+            "US Dietary Supplement Regulatory Strategist",
+            "DSHEA 1994 Structure/Function Claims Researcher",
+            "21 CFR Part 111 cGMP Compliance Architect",
+            "FDA Facility & Labeling Executor",
+            "FDA Disclaimer & Safety Standard Verifier"
+        ]
+
+    elif "directive 2004/24/ec" in norm or "thmpd" in norm or ("germany" in norm and "traditional" in norm) or ("eu" in norm and "herbal" in norm and "medicinal" in norm):
+        domain = "EU_THMPD"
+        pathway = "EU Traditional Herbal Medicinal Product Registration (Directive 2004/24/EC & THMPD)"
+        squad = [
+            "EU Herbal Medicines Regulatory Specialist",
+            "THMPD 30-Year Traditional Use Evidence Researcher",
+            "EMA / HMPC Community Monograph Architect",
+            "EU National Competent Authority Dossier Executor",
+            "EU Statutory Directive Citation Verifier"
+        ]
+
+    elif "pct" in norm or "patent cooperation treaty" in norm or ("wipo" in norm and "patent" in norm):
+        domain = "INTERNATIONAL_PATENT"
+        pathway = "WIPO PCT International Patent Application & National Phase Entry"
+        squad = [
+            "WIPO PCT International Patent Strategist",
+            "International Search Authority (ISA) Prior-Art Researcher",
+            "PCT Chapter I/II Claims Harmonization Architect",
+            "PCT/RO/101 International Filing Executor",
+            "WIPO PCT & GRATK Disclosure Treaty Verifier"
+        ]
+
+    elif "fssai" in norm or "ayurveda aahar" in norm or ("food" in norm and "ayurved" in norm):
+        domain = "FOOD_FSSAI"
+        pathway = "FSSAI (Ayurveda Aahar) Regulations 2022 & Dietary Food Safety Pathway"
+        squad = [
+            "FSSAI & Ayurveda Aahar Compliance Strategist",
+            "First Schedule Ayurvedic Culinary Text Researcher",
+            "Food Safety & Permissible Additives Architect",
+            "FSSAI Food Business Licensing Dossier Executor",
+            "Non-Curative Labeling & DMR(OA) Act Verifier"
+        ]
+
+    elif "phytopharmaceutical" in norm or "rule 2(eb)" in norm or "bioactive marker" in norm:
+        domain = "AYUSH_PRODUCT_REGULATION"
+        pathway = "CDSCO Phytopharmaceutical Drug Development & Clinical Regulatory Pathway (Rule 2(eb))"
+        squad = [
+            "Phytopharmaceutical Drug Regulatory Lead",
+            "4-Marker Bioactive Chemical Fingerprinting Researcher",
+            "CDSCO IND & Phase I/II Clinical Protocol Architect",
+            "CT Rules Form CT-04 Application Executor",
+            "CDSCO Subject Expert Committee (SEC) Verifier"
         ]
 
     # 11. Cross-Border Export / Mixed Default
@@ -697,18 +1013,22 @@ def audit_verification_layer(
     # ==========================================
     # TIER 2: STATUTORY APPLICABILITY AUDIT
     # ==========================================
-    # 1. Patent provisions (Sec 3(p), 3(d), 3(e))
-    pat_findings = check_patent_provision_applicability(prompt_text, deliverable_text)
-    applicability_findings.extend(pat_findings)
+    # Only evaluate Indian patent/ABS/ASU provisions if domain is NOT EU_COSMETIC_REGULATORY and jurisdiction mode is not purely foreign
+    if domain != "EU_COSMETIC_REGULATORY" and (jurisdiction_res.get("mode") in ["INDIA", "BOTH"] or domain in ["PATENT", "ABS_BIODIVERSITY", "AYUSH_MANUFACTURING", "AYUSH_PRODUCT_REGULATION", "TRADEMARK", "FOOD_FSSAI", "EXPORT_COMPLIANCE", "MULTI_DOMAIN"]):
+        # 1. Patent provisions (Sec 3(p), 3(d), 3(e))
+        pat_findings = check_patent_provision_applicability(prompt_text, deliverable_text)
+        applicability_findings.extend(pat_findings)
 
-    # 2. ABS provisions
-    abs_status, abs_findings = evaluate_abs_applicability(prompt_text, deliverable_text)
-    applicability_findings.extend(abs_findings)
+        # 2. ABS provisions
+        abs_status, abs_findings = evaluate_abs_applicability(prompt_text, deliverable_text)
+        applicability_findings.extend(abs_findings)
 
-    # 3. Rule 158B ASU Classification
-    r158b_class, r158b_finding = classify_rule_158b_product(prompt_text)
-    if r158b_finding:
-        applicability_findings.append(r158b_finding)
+        # 3. Rule 158B ASU Classification
+        r158b_class, r158b_finding = classify_rule_158b_product(prompt_text)
+        if r158b_finding:
+            applicability_findings.append(r158b_finding)
+    else:
+        r158b_class = "NOT_APPLICABLE"
 
     # 4. Foreign Regimes (US FDA / EU THMPD / Madrid System)
     if domain == "US_FDA_DRUG":
@@ -870,7 +1190,7 @@ def audit_verification_layer(
         })
 
     # Check 4: Rule 158B(I)(A) Classical Trial Exemption
-    if r158b_class == "CLASSICAL_ASU_MEDICINE":
+    if r158b_class == "CLASSICAL_ASU_MEDICINE" and any(f["statute_code"] == "DCR-RULE-158B-1-A" for f in applicability_findings):
         conclusion_validations.append({
             "conclusion_statement": "Classical Ayurvedic formulations listed in First Schedule authoritative texts are substantiated by textual reference under Rule 158B(I)(A) without clinical trials.",
             "statutory_basis": "Drugs & Cosmetics Rules 1945 - Rule 158B(I)(A)",
@@ -967,6 +1287,34 @@ def audit_verification_layer(
                 "legal_analysis": "Conclusion is legally justified: Article 16 6-month notification window for nanomaterials correctly recognized.",
                 "correct_statutory_verdict": "Legally justified: Article 16 nanomaterials protocol applied."
             })
+
+        # -------------------------------------------------------------
+        # STEP 3: GENERIC POST-LLM DETERMINISTIC VERIFIER OVERRIDES (CIRCUIT BREAKER)
+        # -------------------------------------------------------------
+        table_text = deliverable_text or ""
+        if table_text:
+            domain_pkg = DOMAIN_REGISTRY.get(domain, DOMAIN_REGISTRY.get("EU_COSMETIC_REGULATORY", {}))
+            
+            # 1. Foreign Law / Forbidden Terms Contamination Check
+            for term in domain_pkg.get("forbidden_terms", []):
+                if term in table_text:
+                    contradictions.append({
+                        "severity": "CRITICAL",
+                        "issue": f"Cross-Domain Contamination: Found '{term}' in a {domain_pkg.get('label', domain)} query.",
+                        "explanation": f"Deliverable table contains forbidden statute reference '{term}' which is inapplicable to {domain_pkg.get('label', domain)}.",
+                        "remedy": f"Purge irrelevant statutes and regenerate using {domain_pkg.get('label', domain)} provisions only."
+                    })
+
+            # 2. Mismatched Article / Assertion Checks
+            for check in domain_pkg.get("verifier_assertions", []):
+                if check["regex"].search(table_text):
+                    contradictions.append({
+                        "severity": "HIGH",
+                        "issue": check["error"],
+                        "explanation": f"Statutory mapping violation in deliverable: {check['error']}.",
+                        "remedy": f"Re-align statutory mapping according to {domain_pkg.get('label', domain)} ground truth."
+                    })
+
     elif domain == "INTERNATIONAL_TRADEMARK":
         conclusion_validations.append({
             "conclusion_statement": "Madrid System international trademark filing requires a basic home application / registration in Class 5 to establish priority across designated contracting states.",
@@ -981,6 +1329,8 @@ def audit_verification_layer(
         round(sum(1 for c in conclusion_validations if c["is_justified"]) / len(conclusion_validations), 2)
         if conclusion_validations else 1.0
     )
+    if contradictions:
+        conclusion_score = 0.0
 
     three_tier_report = {
         "tier_1_citation_verification": {
@@ -990,13 +1340,13 @@ def audit_verification_layer(
         },
         "tier_2_applicability_verification": {
             "score": applicability_score,
-            "status": "PASSED" if applicability_score >= 0.70 else "FLAGGED",
+            "status": "PASSED" if (applicability_score >= 0.70 and not contradictions) else "FLAGGED",
             "statutes_evaluated": len(applicability_findings),
             "findings": applicability_findings
         },
         "tier_3_conclusion_verification": {
             "score": conclusion_score,
-            "status": "PASSED" if conclusion_score >= 0.80 else "FLAGGED",
+            "status": "PASSED" if (conclusion_score >= 0.80 and not contradictions) else "FLAGGED",
             "conclusions_audited": len(conclusion_validations),
             "validations": conclusion_validations
         }

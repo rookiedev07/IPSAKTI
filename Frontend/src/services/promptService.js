@@ -48,8 +48,9 @@ export async function matchPrompt(prompt, options = {}) {
 
   const rawPrompt = prompt.trim();
   const language = options.language || "en";
+  const jurisdiction = options.jurisdiction || null;
   const controller = new AbortController();
-  // Allow up to 120s for deep 5-agent sequential NIM DeepSeek reasoning
+  // Allow up to 120s for deep 5-agent sequential reasoning
   const timeoutId = setTimeout(() => controller.abort(), 120000);
 
   // 1. Try hitting the local Node.js Backend Orchestrator first
@@ -57,17 +58,20 @@ export async function matchPrompt(prompt, options = {}) {
     const backendRes = await fetch(`${LOCAL_BACKEND_URL}/api/prompt/orchestrate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: rawPrompt, language }),
+      body: JSON.stringify({ prompt: rawPrompt, language, jurisdiction }),
       signal: controller.signal,
     });
 
     if (backendRes.ok) {
       clearTimeout(timeoutId);
       const data = await backendRes.json();
+      console.log("[HOC FRONTEND] Successfully received live backend orchestrator response:", data.subcategory || data.category);
       return data;
+    } else {
+      console.warn(`[HOC FRONTEND] Backend orchestrator returned HTTP ${backendRes.status}: ${backendRes.statusText}`);
     }
   } catch (backendErr) {
-    console.warn("Backend orchestrator fetch skipped/unavailable, connecting to Render direct endpoint:", backendErr.message);
+    console.warn("[HOC FRONTEND] Backend orchestrator fetch error, attempting fallback:", backendErr.message);
   }
 
   // 2. Direct Render Prompt Matcher fallback

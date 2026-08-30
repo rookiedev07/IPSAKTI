@@ -55,6 +55,7 @@ const Main = () => {
     setPhase("shifted");
     setCardsDealt(false);
     setShowOutput(false);
+    setMatchedData(null);
     setIsMatching(true);
 
     try {

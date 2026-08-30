@@ -147,7 +147,7 @@ USER QUERY: "I developed a simple powder mixture of Turmeric (Curcuma longa), Gi
 [LAYER 7: 3-TIER STATUTORY VERIFICATION PIPELINE]
   • Overall Status: FLAGGED / CONTRADICTIONS IDENTIFIED
   • Tier 1 (Citation Authenticity & Currency): 95% [PASSED] (Audited 4 citations)
-  • Tier 2 (Statutory Precondition Applicability): 100% [PASSED] ('Does this law apply here?')
+  • Tier 2 (Statutory Precondition Applicability): 100% [FLAGGED] ('Does this law apply here?')
     * [PAT-SEC-3P] Patents Act 1970 - Section 3(p) (Traditional Knowledge Bar)
       - Preconditions Met: 2
         ✓ Invention utilizes traditional Ayurvedic botanical knowledge / classical formulary
@@ -168,7 +168,7 @@ USER QUERY: "I developed a simple powder mixture of Turmeric (Curcuma longa), Gi
         ✓ Novel composition, non-classical ratio, or modern extraction method
         ✓ Mandates submission of published scientific safety literature or pilot toxicity data
       - Legal Rationale: Rule 158B(I)(B) applies to govern Patent or Proprietary ASU medicines requiring safety dossier verification.
-  • Tier 3 (Conclusion Entailment Audit): 50% [FLAGGED] ('Does law justify conclusion?')
+  • Tier 3 (Conclusion Entailment Audit): 0% [FLAGGED] ('Does law justify conclusion?')
     * ⚠️ [STATUTORY_BAR_CONTRADICTION] Patents Act 1970 - Section 3(p) & Section 3(e)
       - Conclusion: Query proposes patenting a classical polyherbal mixture without synergistic proof.
       - Statutory Analysis: Section 3(p) explicitly bars patenting of traditional knowledge. A mere admixture is statutorily non-patentable without synergistic interaction proof.
@@ -252,7 +252,7 @@ USER QUERY: "Can I launch an Ashwagandha and Brahmi herbal infusion tea under FS
 [LAYER 7: 3-TIER STATUTORY VERIFICATION PIPELINE]
   • Overall Status: FLAGGED / CONTRADICTIONS IDENTIFIED
   • Tier 1 (Citation Authenticity & Currency): 95% [PASSED] (Audited 1 citations)
-  • Tier 2 (Statutory Precondition Applicability): 100% [PASSED] ('Does this law apply here?')
+  • Tier 2 (Statutory Precondition Applicability): 100% [FLAGGED] ('Does this law apply here?')
     * [FSSAI-AAHAR-2022] FSSAI (Ayurveda Aahar) Regulations 2022
       - Preconditions Met: 2
         ✓ Food product prepared in accordance with authoritative Ayurvedic culinary texts
@@ -433,11 +433,6 @@ USER QUERY: "We want to register a standardized Bacopa monnieri (Brahmi) memory 
   • Overall Status: PASSED (SAFE)
   • Tier 1 (Citation Authenticity & Currency): 95% [PASSED] (Audited 5 citations)
   • Tier 2 (Statutory Precondition Applicability): 100% [PASSED] ('Does this law apply here?')
-    * [BDA-SEC-3] Biological Diversity Act 2002 — Section 3 (Foreign Entity Access Approval)
-      - Preconditions Met: 2
-        ✓ Non-Indian entity / entity with foreign equity participation accessing biological resources
-        ✓ Mandates prior Form I approval from the National Biodiversity Authority (NBA)
-      - Legal Rationale: Section 3 applies mandatorily for foreign entities accessing Indian bio-resources for research or commercial utilization.
     * [EU-DIR-2004-24-EC] EU Directive 2004/24/EC (Traditional Herbal Medicinal Products Directive)
       - Preconditions Met: 2
         ✓ Simplified registration for traditional herbal medicine in EU member states
@@ -624,10 +619,6 @@ USER QUERY: "We want to export an Ayurvedic hair-oil and Ayurvedic skin serum to
         ✓ Mandates designated EU Responsible Person (Art 4), CPSR Safety Assessment (Art 10 & Annex I), PIF (Art 11), CPNP Notification (Art 13), Nanomaterial 6-month prior notice (Art 16), and SUE Cosmetovigilance (Art 23)
       - Legal Rationale: Regulation (EC) No 1223/2009 applies directly and exclusively to govern cosmetic safety, dossiers, and market placement across all EU member states.
   • Tier 3 (Conclusion Entailment Audit): 100% [PASSED] ('Does law justify conclusion?')
-    * ✓ [VALID_JUSTIFIED_DEDUCTION] EU Regulation (EC) No 1223/2009 - Article 4
-      - Conclusion: Correctly identifies Article 4 as the mandatory statutory authority for EU Responsible Person (RP) designation.
-      - Statutory Analysis: Conclusion is legally justified: Article 4 Responsible Person mandate correctly cited.
-      - Verdict: Legally justified: Article 4 Responsible Person mandate applied.
     * ✓ [VALID_JUSTIFIED_DEDUCTION] EU Regulation (EC) No 1223/2009 - Article 23
       - Conclusion: Correctly maps EU cosmetovigilance and Serious Undesirable Effects (SUE) communication to Article 23.
       - Statutory Analysis: Conclusion is legally justified: Article 23 correctly cited for SUE notification to EU Member State authorities.
@@ -663,29 +654,29 @@ USER QUERY: "We want to file a patent in the USPTO for an Ashwagandha root extra
   • Expected Jurisdiction: Multi-Jurisdictional (India + International)
   • Detected Jurisdiction: Multi-Jurisdictional (India + International)
   • Effective Jurisdiction: Both
-  • Detected Regulatory Domain: ABS_BIODIVERSITY
-  • Selected Lead Council Agent: National Biodiversity Authority (NBA/ABS) Senior Counsel
-  • Relevant Sources Retrieved: in-bd-act-2002, intl-cbd-nagoya
+  • Detected Regulatory Domain: MULTI_DOMAIN
+  • Selected Lead Council Agent: Cross-Border Patent & Life Sciences Counsel
+  • Relevant Sources Retrieved: None
   • Irrelevant Sources Blocked: 0 sources blocked (clean)
   • Verification Status: SAFE / PASSED
-  • Confidence Score: 87.6% (HIGH)
-  • Escalation Status: NOT TRIGGERED
+  • Confidence Score: 40.0% (LOW)
+  • Escalation Status: TRIGGERED
   • Benchmark Assertion Verdict: PASS (VERIFIED SAFE)
 
 [LAYER 1: INGRESS & INTENT CLASSIFICATION]
-  • Classified Regulatory Domain: ABS_BIODIVERSITY
+  • Classified Regulatory Domain: MULTI_DOMAIN
   • Ingress Status: PROCESSED (Zero Hallucination Guard Engaged)
 
 [LAYER 2: 5-AGENT COUNCIL SELECTION & ARBITRATION]
   • Dealt Specialist Council (5 Agents):
-    1. National Biodiversity Authority (NBA/ABS) Senior Counsel
-    2. Biological Resource Access & State Board (SBB) Researcher
-    3. Benefit-Sharing Agreement (0.1%-0.5%) Architect
-    4. NBA Form I / Form III Application Executor
-    5. Biological Diversity Act 2002/2023 Statutory Verifier
+    1. Cross-Border Patent & Life Sciences Counsel
+    2. TKDL Prior-Art & Global Search Specialist
+    3. Synergistic Formulation & Enhanced Efficacy Architect
+    4. Dual Indian & Foreign Patent Prosecution Executor
+    5. Section 3(p) & NBA Form III Statutory Verifier
 
 [LAYER 3 & 4: STRATEGIC ARCHITECTURE & PRODUCTION DELIVERABLE]
-  • Dynamic Primary Regulatory Pathway: Biological Diversity Act Access & Benefit Sharing (ABS) Compliance (NBA Form I/III)
+  • Dynamic Primary Regulatory Pathway: Dual Indian Patent (Sec 3(p)/3(d)) & Cross-Border IPR Compliance (NBA Form III)
   • Strategy Blueprint: Structured statutory roadmap formulated.
 
 [LAYER 5: JURISDICTION RESOLUTION HIERARCHY]
@@ -700,15 +691,11 @@ USER QUERY: "We want to file a patent in the USPTO for an Ashwagandha root extra
     - Explicit Indian Territorial Reference
 
 [LAYER 6: HARD METADATA-FILTERED CITATION RETRIEVAL]
-  • Relevant Sources Retrieved (2):
-    - [in-bd-act-2002] The Biological Diversity Act, 2002 & Amendment 2023
-      Authority: National Biodiversity Authority (NBA) | Jur: India | Domain: ABS_BIODIVERSITY
-    - [intl-cbd-nagoya] Nagoya Protocol on Access and Benefit-Sharing
-      Authority: Convention on Biological Diversity (CBD) Secretariat | Jur: International | Domain: ABS_BIODIVERSITY
+  • Relevant Sources Retrieved (0):
 
 [LAYER 7: 3-TIER STATUTORY VERIFICATION PIPELINE]
   • Overall Status: PASSED (SAFE)
-  • Tier 1 (Citation Authenticity & Currency): 95% [PASSED] (Audited 2 citations)
+  • Tier 1 (Citation Authenticity & Currency): 50% [FLAGGED] (Audited 0 citations)
   • Tier 2 (Statutory Precondition Applicability): 100% [PASSED] ('Does this law apply here?')
     * [PAT-SEC-3P] Patents Act 1970 - Section 3(p) (Traditional Knowledge Bar)
       - Preconditions Met: 2
@@ -737,13 +724,17 @@ USER QUERY: "We want to file a patent in the USPTO for an Ashwagandha root extra
   • Statutory Contradictions Flagged: 0
 
 [LAYER 8: MULTI-FACTOR CONFIDENCE & DYNAMIC ESCALATION DOSSIER]
-  • Composite Confidence Score: 87.6% (Rating: HIGH)
+  • Composite Confidence Score: 40.0% (Rating: LOW)
   • Factor Breakdown:
-    - Citation Coverage Factor: 0.67
+    - Citation Coverage Factor: 0.0
     - Jurisdiction Alignment Factor: 1.0
-    - Source Diversity Factor: 1.0
+    - Source Diversity Factor: 0.0
     - Contradiction Penalty: 0.0
-  • Human Escalation: NOT TRIGGERED (High confidence standard filing pathway)
+    - Confidence Ceiling Applied: True (NO_AUTHORITATIVE_SOURCE (Cap: 40%))
+  • Human Escalation: TRIGGERED (HIGH Risk - ADVISORY Priority)
+  • Designated Legal Specialist: Senior Life Sciences IP & Multi-Jurisdictional Regulatory Counsel
+  • Dynamic Targeted Questions Formulated (1 questions):
+    1. Are all statutory filing prerequisites and technical evidence dossiers verified for Ashwagandha (Withania somnifera)?
 
 [LAYER 9: MULTILINGUAL GLOSSARY & STATUTORY DISCLAIMER]
   • Target Language: EN
@@ -810,21 +801,12 @@ USER QUERY: "An Indian manufacturer wants to export classical Triphala Guggulu t
   • Overall Status: PASSED (SAFE)
   • Tier 1 (Citation Authenticity & Currency): 95% [PASSED] (Audited 3 citations)
   • Tier 2 (Statutory Precondition Applicability): 100% [PASSED] ('Does this law apply here?')
-    * [DCR-RULE-158B-1-A] Drugs & Cosmetics Rules 1945 — Rule 158B(I)(A) (Classical ASU Formulations)
-      - Preconditions Met: 2
-        ✓ Formulation strictly follows recognized First Schedule authoritative Ayurvedic treatise
-        ✓ Exempt from safety/efficacy trials; textual reference serves as legal proof
-      - Legal Rationale: Rule 158B(I)(A) applies directly to authorize Form 25D licensing based on classical text citation without clinical trials.
     * [US-FDA-21CFR312] US FDA 21 CFR Part 312 & Botanical Drug Guidance
       - Preconditions Met: 2
         ✓ Investigational botanical drug intended for US Phase II clinical trials
         ✓ Mandates CMC batch consistency, raw material authentication, and IND approval
       - Legal Rationale: 21 CFR Part 312 applies to govern investigational clinical trial authorization in the United States.
   • Tier 3 (Conclusion Entailment Audit): 100% [PASSED] ('Does law justify conclusion?')
-    * ✓ [VALID_JUSTIFIED_DEDUCTION] Drugs & Cosmetics Rules 1945 - Rule 158B(I)(A)
-      - Conclusion: Classical Ayurvedic formulations listed in First Schedule authoritative texts are substantiated by textual reference under Rule 158B(I)(A) without clinical trials.
-      - Statutory Analysis: Conclusion is legally justified: First Schedule textual citations substantiate classical Form 25D licensing without clinical trials.
-      - Verdict: Legally justified: Rule 158B(I)(A) classical licensing standard applied.
     * ✓ [VALID_JUSTIFIED_DEDUCTION] US FDA 21 CFR Part 312 & Botanical Drug Guidance
       - Conclusion: Botanical drug Phase II clinical investigation in the US requires an IND submission under 21 CFR Part 312 with rigorous CMC batch consistency.
       - Statutory Analysis: Conclusion is legally justified: 21 CFR Part 312 requirements correctly cited for investigational botanical drug development.
@@ -1018,8 +1000,8 @@ USER QUERY: "क्या हम ब्राह्मी और शंखपु
   • Expected Jurisdiction: Multi-Jurisdictional (India + International)
   • Detected Jurisdiction: Multi-Jurisdictional (India + International)
   • Effective Jurisdiction: Both
-  • Detected Regulatory Domain: ABS_BIODIVERSITY
-  • Selected Lead Council Agent: National Biodiversity Authority (NBA/ABS) Senior Counsel
+  • Detected Regulatory Domain: MULTI_DOMAIN
+  • Selected Lead Council Agent: Cross-Border Patent & Life Sciences Counsel
   • Relevant Sources Retrieved: in-bd-act-2002, intl-cbd-nagoya
   • Irrelevant Sources Blocked: 0 sources blocked (clean)
   • Verification Status: SAFE / PASSED
@@ -1028,19 +1010,19 @@ USER QUERY: "क्या हम ब्राह्मी और शंखपु
   • Benchmark Assertion Verdict: PASS (VERIFIED SAFE)
 
 [LAYER 1: INGRESS & INTENT CLASSIFICATION]
-  • Classified Regulatory Domain: ABS_BIODIVERSITY
+  • Classified Regulatory Domain: MULTI_DOMAIN
   • Ingress Status: PROCESSED (Zero Hallucination Guard Engaged)
 
 [LAYER 2: 5-AGENT COUNCIL SELECTION & ARBITRATION]
   • Dealt Specialist Council (5 Agents):
-    1. National Biodiversity Authority (NBA/ABS) Senior Counsel
-    2. Biological Resource Access & State Board (SBB) Researcher
-    3. Benefit-Sharing Agreement (0.1%-0.5%) Architect
-    4. NBA Form I / Form III Application Executor
-    5. Biological Diversity Act 2002/2023 Statutory Verifier
+    1. Cross-Border Patent & Life Sciences Counsel
+    2. TKDL Prior-Art & Global Search Specialist
+    3. Synergistic Formulation & Enhanced Efficacy Architect
+    4. Dual Indian & Foreign Patent Prosecution Executor
+    5. Section 3(p) & NBA Form III Statutory Verifier
 
 [LAYER 3 & 4: STRATEGIC ARCHITECTURE & PRODUCTION DELIVERABLE]
-  • Dynamic Primary Regulatory Pathway: Biological Diversity Act Access & Benefit Sharing (ABS) Compliance (NBA Form I/III)
+  • Dynamic Primary Regulatory Pathway: Dual Indian Patent (Sec 3(p)/3(d)) & Cross-Border IPR Compliance (NBA Form III)
   • Strategy Blueprint: Structured statutory roadmap formulated.
 
 [LAYER 5: JURISDICTION RESOLUTION HIERARCHY]
@@ -1174,11 +1156,11 @@ TC-INT-01   | United States  | United States  | US_FDA_DRUG              | 3    
 TC-INT-02   | European Union | European Union | EU_THMPD                 | 5        | SAFE      | 99.2%   | NO     | PASS  
 TC-INT-03   | International  | International  | INTERNATIONAL_TRADEMARK  | 1        | SAFE      | 69.9%   | YES    | PASS  
 TC-INT-04   | European Union | International  | EU_COSMETIC_REGULATORY   | 5        | SAFE      | 99.2%   | NO     | PASS  
-TC-MIX-01   | Multi-Jurisdic | Multi-Jurisdic | ABS_BIODIVERSITY         | 2        | SAFE      | 87.6%   | NO     | PASS  
+TC-MIX-01   | Multi-Jurisdic | Multi-Jurisdic | MULTI_DOMAIN             | 0        | SAFE      | 40.0%   | YES    | PASS  
 TC-MIX-02   | Multi-Jurisdic | International  | US_FDA_DRUG              | 3        | SAFE      | 99.2%   | NO     | PASS  
 TC-MIX-03   | Multi-Jurisdic | Multi-Jurisdic | ABS_BIODIVERSITY         | 2        | SAFE      | 87.6%   | NO     | PASS  
 TC-MIX-04   | Multi-Jurisdic | Multi-Jurisdic | INTERNATIONAL_PATENT     | 2        | SAFE      | 81.6%   | NO     | PASS  
-TC-MIX-05   | Multi-Jurisdic | Multi-Jurisdic | ABS_BIODIVERSITY         | 2        | SAFE      | 87.6%   | NO     | PASS  
+TC-MIX-05   | Multi-Jurisdic | Multi-Jurisdic | MULTI_DOMAIN             | 2        | SAFE      | 87.6%   | NO     | PASS  
 TC-MIX-06   | Multi-Jurisdic | Multi-Jurisdic | EXPORT_COMPLIANCE        | 3        | SAFE      | 99.2%   | NO     | PASS  
 -------------------------------------------------------------------------------------------------------------------
 

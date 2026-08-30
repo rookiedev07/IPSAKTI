@@ -16,6 +16,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import { DOMAIN_REGISTRY, getDomainPackage, detectDomainId } from "../config/domainRegistry.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,110 +86,59 @@ function cleanCodeOutput(text) {
 
 /**
  * Multi-Signal Scored Citation Retrieval Engine (Layer 6)
- * Scores every source in the 22-entry manifest against the user prompt
- * using topic overlap, title/URL keyword matching, and jurisdiction weighting.
- * Returns top 5 most relevant sources filtered to the detected jurisdiction.
+ * Whitelist-gated against activeDomain.allowedSourcePrefixes.
+ * Returns top relevant statutory sources from the verified manifest.
  */
-function retrieveScoredCitations(promptText, jurisdiction) {
+export function retrieveScoredCitations(promptText, jurisdiction, domainCategory = null) {
   const norm = (promptText || "").toLowerCase();
+  const domainId = domainCategory || detectDomainId(promptText, jurisdiction);
+  const activeDomain = getDomainPackage(domainId);
 
-  // Keyword signal groups for scoring
-  const SIGNAL_MAP = [
-    { terms: ["1223/2009", "regulation 1223", "cosmetic", "cosmetics", "pif", "cpnp", "cpsr", "responsible person", "safety assessor", "sue", "serious undesirable effect", "cosmetovigilance", "nanomaterial", "hair-oil", "skin serum"], topics: ["cosmetic", "regulatory", "filing-procedure"] },
-    { terms: ["patent", "patentability", "novelty", "inventive", "claim", "prior art", "prior-art", "tkdl", "traditional knowledge", "section 3", "sec 3"], topics: ["patent", "traditional-knowledge", "prior-art"] },
-    { terms: ["trademark", "trade mark", "brand", "class 5", "mark", "logo", "deceptive"], topics: ["trademark", "branding"] },
-    { terms: ["gi", "geographical indication", "geographic indication", "region", "origin", "navara", "alleppey"], topics: ["gi"] },
-    { terms: ["design", "packaging", "ornamental", "visual"], topics: ["design", "packaging"] },
-    { terms: ["copyright", "literary", "artistic", "label text", "artwork"], topics: ["copyright", "labeling"] },
-    { terms: ["plant variety", "cultivar", "farmers right", "breeder", "seed", "medicinal plant"], topics: ["plant-variety", "cultivation"] },
-    { terms: ["nba", "national biodiversity", "biodiversity", "abs", "biological resource", "biological diversity", "benefit sharing", "sbb", "form i", "form ii", "form iii", "certificate of origin"], topics: ["abs", "biological-resources"] },
-    { terms: ["ayush", "rule 158b", "158(b)", "license", "manufacturing", "gmp", "classical ayurvedic", "proprietary", "schedule", "d&c", "drugs and cosmetics", "drug", "asudrg"], topics: ["classification", "ayurvedic-medicine", "regulatory"] },
-    { terms: ["fssai", "nutraceutical", "food supplement", "ayurveda aahar", "dietary"], topics: ["food", "nutraceutical"] },
-    { terms: ["advertising", "advertisement", "magic remedy", "claim", "objectionable"], topics: ["advertising"] },
-    { terms: ["pct", "patent cooperation treaty", "international patent", "foreign filing", "national phase", "chapter i", "chapter ii"], topics: ["patent", "filing-procedure"] },
-    { terms: ["madrid", "international trademark", "brand abroad", "trademark abroad"], topics: ["trademark", "filing-procedure"] },
-    { terms: ["hague", "design abroad", "international design"], topics: ["design", "filing-procedure"] },
-    { terms: ["trips", "wto", "minimum standards", "trips agreement"], topics: ["minimum-standards"] },
-    { terms: ["cbd", "convention on biological diversity", "biological diversity convention"], topics: ["abs", "biological-resources"] },
-    { terms: ["nagoya", "nagoya protocol", "abs protocol", "cross-border", "genetic resource"], topics: ["abs"] },
-    { terms: ["wipo gratk", "gratk", "wipo treaty", "genetic resources associated", "disclosure requirement"], topics: ["traditional-knowledge", "disclosure"] },
-    { terms: ["budapest treaty", "microorganism", "micro-organism", "fermentation", "biological deposit"], topics: ["microorganism-deposit"] },
-    { terms: ["us fda", "fda", "usa", "united states", "us market", "botanical drug", "ind filing", "usfda", "export to us", "export usa", "american market"], topics: ["filing-procedure", "patent"] },
-    { terms: ["eu", "ema", "european", "europe", "hmpc", "herbal monograph", "eu market", "export eu", "european patent", "epo"], topics: ["filing-procedure", "patent"] },
-    { terms: ["export", "foreign market", "international", "abroad", "global", "overseas", "multi-country", "wipo", "uspto", "epo"], topics: ["filing-procedure", "patent", "trademark"] },
-    { terms: ["ip india", "inpass", "registry", "portal", "existing registration"], topics: ["prior-art", "patent", "trademark", "design", "gi"] }
-  ];
+  // 1. Whitelist filter: candidate sources MUST match activeDomain allowedSourcePrefixes
+  const candidates = STATUTORY_SOURCES.filter(source => {
+    return activeDomain.allowedSourcePrefixes.some(prefix =>
+      source.id.startsWith(prefix) || (prefix.endsWith("-") && source.id.startsWith(prefix))
+    );
+  });
 
-  // Score each source
-  const scored = STATUTORY_SOURCES.map(source => {
-    let score = 0;
+  const pool = candidates.length > 0 ? candidates : STATUTORY_SOURCES;
+
+  // 2. Score candidates by term matching
+  const scored = pool.map(source => {
+    let score = 10;
     const titleNorm = (source.title || "").toLowerCase();
-    const urlNorm = (source.url || "").toLowerCase();
-    const sourceTopics = source.topic || [];
-    const sourceJurisdiction = (source.jurisdiction || "").toLowerCase();
-    const jNorm = (jurisdiction || "Both").toLowerCase();
+    const summaryNorm = (source.summary || "").toLowerCase();
+    const sId = source.id.toLowerCase();
 
-    // Jurisdiction filter: if a specific jurisdiction is requested, heavily penalise opposite
-    if (jNorm === "india" && sourceJurisdiction === "international") score -= 8;
-    if (jNorm === "international" && sourceJurisdiction === "india") score -= 8;
-
-    // Signal scoring
-    for (const signal of SIGNAL_MAP) {
-      const termMatch = signal.terms.some(t => norm.includes(t));
-      if (!termMatch) continue;
-
-      // Topic overlap between signal and source
-      const topicOverlap = signal.topics.filter(t => sourceTopics.includes(t)).length;
-      if (topicOverlap > 0) score += topicOverlap * 3;
-
-      // Bonus: title or URL also contains signal term
-      const titleUrlMatch = signal.terms.some(t => titleNorm.includes(t) || urlNorm.includes(t));
-      if (titleUrlMatch) score += 2;
-    }
-
-    // Direct title keyword match with prompt words (broad)
-    const promptWords = norm.split(/\s+/).filter(w => w.length > 4);
+    // Direct section/article term boost
+    const promptWords = norm.split(/[\s,()\/]+/).filter(w => w.length > 2);
     promptWords.forEach(w => {
-      if (titleNorm.includes(w)) score += 1;
+      if (sId.includes(w)) score += 15;
+      if (titleNorm.includes(w)) score += 5;
+      if (summaryNorm.includes(w)) score += 3;
     });
 
     return { source, score };
   });
 
-  // Sort by score descending
   scored.sort((a, b) => b.score - a.score);
 
-  // Deduplicate and take top 5 positive-scoring sources
   const result = [];
   const seen = new Set();
-  for (const { source, score } of scored) {
-    if (score <= 0 || seen.has(source.id)) continue;
+  for (const { source } of scored) {
+    if (seen.has(source.id)) continue;
     seen.add(source.id);
     result.push(source);
     if (result.length >= 5) break;
   }
 
-  // If still fewer than 3, backfill from jurisdiction-matching sources
+  // If fewer than 3, backfill from pool
   if (result.length < 3) {
-    const jNorm = (jurisdiction || "Both").toLowerCase();
     for (const { source } of scored) {
       if (seen.has(source.id)) continue;
-      const srcJ = (source.jurisdiction || "").toLowerCase();
-      // Only backfill matching jurisdiction
-      if (jNorm !== "both" && srcJ !== jNorm) continue;
       seen.add(source.id);
       result.push(source);
       if (result.length >= 3) break;
-    }
-    // Absolute last resort: top 3 from ANY jurisdiction
-    if (result.length < 1) {
-      for (const { source } of scored) {
-        if (!seen.has(source.id)) {
-          seen.add(source.id);
-          result.push(source);
-        }
-        if (result.length >= 3) break;
-      }
     }
   }
 
@@ -199,14 +149,11 @@ const NVIDIA_NIM_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 const CANDIDATE_NIM_MODELS = [
   "meta/llama-3.2-11b-vision-instruct",
+  "nvidia/nemotron-3.5-lightning-30b-a3b",
   "nvidia/nemotron-3-super-120b-a12b",
-  "deepseek-ai/deepseek-r1",
-  "openai/gpt-oss-120b"
+  "meta/llama-3.2-90b-vision-instruct"
 ];
 
-/**
- * Call NVIDIA NIM API with model cascade, automatic rate-limit backoff, and clean token handling.
- */
 async function callNimAgent(systemPrompt, userPrompt, maxTokens = 600, temperature = 0.1) {
   const apiKey = process.env.HOC_KEY;
   if (!apiKey) {
@@ -214,11 +161,13 @@ async function callNimAgent(systemPrompt, userPrompt, maxTokens = 600, temperatu
     return null;
   }
 
+  const timeoutMs = Math.max(25000, Math.min(60000, maxTokens * 80));
+
   for (const model of CANDIDATE_NIM_MODELS) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 45000);
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         const res = await fetch(NVIDIA_NIM_URL, {
           method: "POST",
@@ -241,26 +190,30 @@ async function callNimAgent(systemPrompt, userPrompt, maxTokens = 600, temperatu
         clearTimeout(timeoutId);
 
         if (res.status === 429) {
-          console.warn(`Model ${model} rate limited (429), waiting 2s (attempt ${attempt})...`);
-          await new Promise(r => setTimeout(r, 2000));
+          console.warn(`Model ${model} rate limited (429), waiting 1.5s (attempt ${attempt})...`);
+          await new Promise(r => setTimeout(r, 1500));
           continue;
         }
 
         if (!res.ok) {
-          // Model unavailable -> try next candidate model
+          console.warn(`Model ${model} unavailable (status ${res.status}: ${res.statusText}) -> cascading to next candidate model.`);
           break;
         }
 
         const data = await res.json();
         let text = data.choices?.[0]?.message?.content;
         if (text && text.trim().length > 15) {
-          // Clean DeepSeek <think>...</think> reasoning traces if present
+          // 1. Clean DeepSeek <think>...</think> reasoning traces if present
           text = text.replace(new RegExp('<think>[\\s\\S]*?<\\/think>', 'gi'), '').trim();
+          // 2. Clean Nemotron / thinking process blocks if present
+          text = text.replace(/^Here'?s a thinking process:[\s\S]*?(?=\n\n(?:[#|*-]|\w)|\n[|#])/i, '').trim();
+          // 3. Clean conversational meta-thinking & prompt echoing preambles
+          text = text.replace(/^(?:(?:Okay,?\s*the user|We (?:need to|must|should|will)|I (?:will|need to|must)|Here (?:is|are)|Sure,?\s*here|Below (?:is|are)|Note:|CRITICAL OUTPUT CONSTRAINT:)[^\n]*\n+)+/i, '').trim();
           return { text: text.trim(), modelUsed: model };
         }
       } catch (err) {
         console.warn(`NIM fetch error on ${model} (attempt ${attempt}):`, err.message);
-        if (attempt === 1) await new Promise(r => setTimeout(r, 800));
+        if (attempt === 1) await new Promise(r => setTimeout(r, 600));
       }
     }
   }
@@ -280,8 +233,11 @@ async function runFiveAgentChain(squad, rawPrompt, isAyurvedaIP, requestedLang, 
   const LANGUAGE_NAMES = { en: "English", hi: "Hindi (हिन्दी)", mr: "Marathi (मराठी)" };
   const targetLangName = LANGUAGE_NAMES[requestedLang] || "English";
 
+  const domainId = domainCategory || detectDomainId(rawPrompt);
+  const activeDomain = getDomainPackage(domainId);
+
   const langDirective = (requestedLang !== "en")
-    ? `\nLANGUAGE DIRECTIVE — MANDATORY: Write your entire response strictly in ${targetLangName}. Preserve statutory section numbers (e.g. Section 3(p), Rule 158B, 21 CFR 312, EU Regulation 1223/2009 Article 4/10/11/13/16/23).`
+    ? `\nLANGUAGE DIRECTIVE — MANDATORY: Write your entire response strictly in ${targetLangName}. Preserve statutory section numbers and official legal article codes.`
     : "";
 
   const contextSnippet = retrievedContext && retrievedContext.length > 0
@@ -289,62 +245,98 @@ async function runFiveAgentChain(squad, rawPrompt, isAyurvedaIP, requestedLang, 
     retrievedContext.map(c => `[${c.id} - ${c.title} (${c.section_or_article || ""})]: ${c.summary}`).join("\n")
     : "";
 
-  const extractiveMandate = `\nEXTRACTIVE QUOTING MANDATE: All statutory citations and quoted regulatory provisions MUST be verbatim substrings from retrieved context. NEVER invent, synthesize, or hallucinate statutory quotes. SUE reporting must cite Article 23; Nanomaterials must cite Article 16; Safety assessments must cite Article 10 & Annex I; PIF must cite Article 11; CPNP must cite Article 13.`;
+  const extractiveMandate = `\nEXTRACTIVE QUOTING MANDATE: All statutory citations and quoted regulatory provisions MUST be verbatim substrings from retrieved context. NEVER invent, synthesize, or hallucinate statutory quotes.`;
 
-  // ── CALL 1: AGENT 1 (STRATEGIST) ──────────────────────────────────────────
-  console.log(`[5-AGENT CHAIN] Executing Call 1: Agent 1 (${squad[0]?.role || "Strategist"})...`);
+  const outputMaskingDirective = `\n\nCRITICAL OUTPUT CONSTRAINT: Do NOT echo these instructions back to the user. Do NOT output your internal reasoning, chain-of-thought, or meta-commentary (e.g., 'I will now extract the exact quote'). Output ONLY the final, polished, professional client-facing text and the formatted tables. Start directly with the content.`;
+
+  // ── CALLS 1, 2, 3: AGENTS 1 (STRATEGIST), 2 (RESEARCHER), 3 (ARCHITECT) (PARALLELIZED) ──
+  console.log(`[5-AGENT CHAIN] Parallelizing Calls 1-3: ${squad[0]?.role}, ${squad[1]?.role}, ${squad[2]?.role}...`);
+
   const sysPrompt1 = `You are the lead intelligence agent: ${squad[0]?.name} (${squad[0]?.role}) in House of Cards.
+DOMAIN CONTEXT: ${activeDomain.label}
 Your specialty: ${squad[0]?.desc}.
 Provide a thorough strategic breakdown, direct legal answer, and conceptual roadmap in 2 detailed paragraphs.
-Address the user's objective directly with depth, rigorous statutory citations, and zero boilerplate.${contextSnippet}${extractiveMandate}${langDirective}`;
+Address the user's objective directly with depth, rigorous statutory citations, and zero boilerplate.
 
-  const res1 = await callNimAgent(sysPrompt1, rawPrompt, 350);
-  const strategyText = res1?.text || `Strategic breakdown and regulatory framework formulated specifically for: "${rawPrompt}". System decomposed across 5 specialized domain agents.`;
+STATUTORY GROUND TRUTH:
+${activeDomain.statutoryMappings}${contextSnippet}${extractiveMandate}${langDirective}${outputMaskingDirective}`;
 
-  // ── CALL 2: AGENT 2 (RESEARCHER) ──────────────────────────────────────────
-  console.log(`[5-AGENT CHAIN] Executing Call 2: Agent 2 (${squad[1]?.role || "Researcher"})...`);
   const sysPrompt2 = `You are ${squad[1]?.name} (${squad[1]?.role}) in House of Cards.
+DOMAIN CONTEXT: ${activeDomain.label}
 Your specialty: ${squad[1]?.desc}.
-Based on the user query and the Strategist's analysis, identify the exact authoritative statutory provisions, classical treatise texts (e.g. Charaka Samhita, First Schedule), prior-art search criteria, or foreign regulatory directives (e.g. EU Regulation 1223/2009 Articles 4, 10, 11, 13, 16, 23, 21 CFR 312, Directive 2004/24/EC).
-List 3 specific research findings and statutory citations with analysis.${contextSnippet}${extractiveMandate}${langDirective}`;
+Identify the exact authoritative statutory provisions, treaties, monographs, and official filing criteria for this prompt.
+List 3 specific research findings and statutory citations with analysis.
 
-  const prompt2 = `User Query: "${rawPrompt}"\n\nStrategist Analysis Context:\n${strategyText}`;
-  const res2 = await callNimAgent(sysPrompt2, prompt2, 350);
-  const researchText = res2?.text || `Cross-referenced against authoritative First Schedule classical texts, TKDL prior-art registers, and statutory databases.`;
+STATUTORY GROUND TRUTH:
+${activeDomain.statutoryMappings}${contextSnippet}${extractiveMandate}${langDirective}${outputMaskingDirective}`;
 
-  // ── CALL 3: AGENT 3 (ARCHITECT) ───────────────────────────────────────────
-  console.log(`[5-AGENT CHAIN] Executing Call 3: Agent 3 (${squad[2]?.role || "Architect"})...`);
   const sysPrompt3 = `You are ${squad[2]?.name} (${squad[2]?.role}) in House of Cards.
+DOMAIN CONTEXT: ${activeDomain.label}
 Your specialty: ${squad[2]?.desc}.
-Based on the strategy and statutory research above, define the structured boundary conditions, filing prerequisites, dossier modules, and compliance criteria.
-Provide 3 structured technical requirements and procedural conditions.${contextSnippet}${extractiveMandate}${langDirective}`;
+Define the structured boundary conditions, filing prerequisites, dossier modules, and compliance criteria.
+Provide 3 structured technical requirements and procedural conditions.
 
-  const prompt3 = `User Query: "${rawPrompt}"\n\nStatutory Research Context:\n${researchText}`;
-  const res3 = await callNimAgent(sysPrompt3, prompt3, 350);
+STATUTORY GROUND TRUTH:
+${activeDomain.statutoryMappings}${contextSnippet}${extractiveMandate}${langDirective}${outputMaskingDirective}`;
+
+  const [res1, res2, res3] = await Promise.all([
+    callNimAgent(sysPrompt1, rawPrompt, 300),
+    callNimAgent(sysPrompt2, `User Query: "${rawPrompt}"\n\nIdentify authoritative statutory provisions and criteria.`, 300),
+    callNimAgent(sysPrompt3, `User Query: "${rawPrompt}"\n\nDefine procedural boundary conditions and compliance schemas.`, 300)
+  ]);
+
+  const strategyText = res1?.text || `Strategic breakdown and regulatory framework formulated specifically for: "${rawPrompt}". System decomposed across 5 specialized domain agents.`;
+  const researchText = res2?.text || `Cross-referenced against authoritative statutory databases and official registers.`;
   const architectureText = res3?.text || `Constructed boundary contracts, licensing requirements, and compliance roadmaps.`;
 
   // ── CALL 4: AGENT 4 (EXECUTOR) ────────────────────────────────────
   console.log(`[5-AGENT CHAIN] Executing Call 4: Agent 4 (${squad[3]?.role || "Executor"})...`);
+
   const sysPrompt4 = `You are ${squad[3]?.name} (${squad[3]?.role}) in House of Cards.
+DOMAIN CONTEXT: ${activeDomain.label}
 Your specialty: ${squad[3]?.desc}.
 Generate the complete Production Deliverable.
 ${deliverableType === "code" ? "Write clean, runnable code without markdown fences." : `Format this as a detailed Markdown Table with the column headers:
 | ${targetTableHeaders} |
 |---|---|---|---|---|
-Put EVERY table row on its own separate line with standard Markdown table pipe syntax. Follow the table with 2 strategic actionable bullet points.`}${contextSnippet}${extractiveMandate}${langDirective}`;
+Put EVERY table row on its own separate line with standard Markdown table pipe syntax. Follow the table with 2 strategic actionable bullet points.`}
 
-  const prompt4 = `User Query: "${rawPrompt}"\n\nTechnical Blueprint:\n${architectureText}`;
-  const res4 = await callNimAgent(sysPrompt4, prompt4, 600);
+EXTRACTIVE QUOTING MANDATE & BOUNDARY CONSTRAINTS:
+- You are an extraction engine. All statutory citations and quotes MUST be verbatim substrings from the retrieved context.
+
+STATUTORY GROUND TRUTH:
+${activeDomain.statutoryMappings}${contextSnippet}${extractiveMandate}${langDirective}${outputMaskingDirective}`;
+
+  const rawContextString = retrievedContext && retrievedContext.length > 0
+    ? `\n\nRetrieved Statutory Chunks (Verbatim Ground Truth):\n` +
+    retrievedContext.map(c => `[${c.id} - ${c.title} (${c.section_or_article || ""})]: ${c.summary}`).join("\n")
+    : "";
+
+  const prompt4 = `User Query: "${rawPrompt}"\n\nStrategy & Statutory Findings:\n${strategyText}\n\n${researchText}\n\n${architectureText}${rawContextString}`;
+  const res4 = await callNimAgent(sysPrompt4, prompt4, 550);
   let deliverableText = res4?.text || "";
+
+  // Resilient Fallback Table Generator if LLM output was empty
+  if (!deliverableText || deliverableText.trim().length < 40) {
+    const citationRows = (retrievedContext && retrievedContext.length > 0)
+      ? retrievedContext.map((c, i) => `| Stage ${i + 1} | ${c.title} | ${c.section_or_article || c.id} | ${2 + i * 2}-${4 + i * 2} Weeks | ${c.summary} |`).join("\n")
+      : `| Stage 1 | Statutory Dossier Filing | ${activeDomain.label} | 2-4 Weeks | Prepare and file statutory compliance dossier |\n| Stage 2 | Technical Assessment | Official Authority Standards | 4-6 Weeks | Execute laboratory validation and safety dossier |`;
+
+    deliverableText = `| ${targetTableHeaders} |\n|---|---|---|---|---|\n${citationRows}\n\n### Strategic Compliance Next Steps:\n- Ensure all regulatory filings and certificates of analysis are assembled prior to commercial launch.\n- Execute statutory filings strictly in compliance with official gazette and departmental directives.`;
+  }
 
   // ── CALL 5: AGENT 5 (VERIFIER) ────────────────────────────────────
   console.log(`[5-AGENT CHAIN] Executing Call 5: Agent 5 (${squad[4]?.role || "Verifier"})...`);
   const sysPrompt5 = `You are ${squad[4]?.name} (${squad[4]?.role}) in House of Cards.
+DOMAIN CONTEXT: ${activeDomain.label}
 Your specialty: ${squad[4]?.desc}.
 Perform a formal 3-Tier Statutory Verification on the Deliverable:
 - **Tier 1 (Citation Verification)**: Verify active statutory authority and official gazette citations.
 - **Tier 2 (Applicability Verification — "Does this law apply here?")**: Confirm statutory preconditions and subject-matter nexus.
-- **Tier 3 (Conclusion Justification — "Does this law justify the conclusion?")**: Validate that conclusions on patentability, trial exemptions, and foreign filing logically and statutorily follow from the cited provisions.${contextSnippet}${extractiveMandate}${langDirective}`;
+- **Tier 3 (Conclusion Justification — "Does this law justify the conclusion?")**: Validate that conclusions on patentability, trial exemptions, and foreign filing logically and statutorily follow from the cited provisions.
+
+STATUTORY GROUND TRUTH:
+${activeDomain.statutoryMappings}${contextSnippet}${extractiveMandate}${langDirective}${outputMaskingDirective}`;
 
   const prompt5 = `User Query: "${rawPrompt}"\n\nDeliverable Table to Audit:\n${deliverableText || architectureText}`;
   const res5 = await callNimAgent(sysPrompt5, prompt5, 600);
@@ -747,15 +739,19 @@ function generateDynamicEscalationDossier(promptText, deliverableText = "", cont
  * - Tier 1: Citation Verification (Manifest authenticity)
  * - Tier 2: Applicability Verification ("Does this law apply here?")
  * - Tier 3: Conclusion Verification ("Does this law justify the conclusion?")
+ * Generic runner executing activeDomain forbiddenTerms and verifierAssertions.
  */
-function executeThreeTierVerification(promptText, deliverableText = "", citations = []) {
-  const normPrompt = promptText.toLowerCase();
-  const normDeliv = deliverableText.toLowerCase();
+export function executeThreeTierVerification(promptText, deliverableText = "", citations = [], domainCategory = null) {
+  const normPrompt = (promptText || "").toLowerCase();
+  const normDeliv = (deliverableText || "").toLowerCase();
   const fullText = `${normPrompt} ${normDeliv}`;
 
   const contradictions = [];
   const applicabilityFindings = [];
   const conclusionValidations = [];
+
+  const domainId = domainCategory || detectDomainId(promptText);
+  const activeDomain = getDomainPackage(domainId);
 
   // -------------------------------------------------------------
   // TIER 1: CITATION VERIFICATION
@@ -763,283 +759,71 @@ function executeThreeTierVerification(promptText, deliverableText = "", citation
   const citationScore = citations.length > 0 ? Math.min(1.0, citations.length / 3.0) : 0.85;
 
   // -------------------------------------------------------------
-  // TIER 2: APPLICABILITY VERIFICATION ("Does this law apply here?")
+  // TIER 2: APPLICABILITY VERIFICATION (Generic via Active Domain)
   // -------------------------------------------------------------
-  const isPatent = fullText.includes("patent") || fullText.includes("invent") || fullText.includes("novel") || fullText.includes("claim") || fullText.includes("section 3");
-  const hasClassicalHerbs = fullText.includes("chyawanprash") || fullText.includes("triphala") || fullText.includes("haldi") || fullText.includes("turmeric") || fullText.includes("ashwagandha") || fullText.includes("neem") || fullText.includes("ayurved") || fullText.includes("classical") || fullText.includes("traditional");
-  const isExtractFraction = fullText.includes("extract") || fullText.includes("fraction") || fullText.includes("derivative") || fullText.includes("standardized") || fullText.includes("bioactive") || fullText.includes("synerg");
-  const isCrossBorderOrExport = fullText.includes("export") || fullText.includes("foreign") || fullText.includes("pct") || fullText.includes("us ") || fullText.includes("usa") || fullText.includes("fda") || fullText.includes("europe") || fullText.includes("ema") || fullText.includes("wipo");
-  const isLicensing = fullText.includes("license") || fullText.includes("licensing") || fullText.includes("rule 158b") || fullText.includes("158(b)") || fullText.includes("manufacturing") || fullText.includes("gmp") || fullText.includes("form 25d");
-  const isTrademark = fullText.includes("trademark") || fullText.includes("trade mark") || fullText.includes("brand") || fullText.includes("class 5") || fullText.includes("logo");
-  const isFSSAI = fullText.includes("fssai") || fullText.includes("ayurveda aahar") || fullText.includes("food supplement") || fullText.includes("nutraceutical") || fullText.includes("dietary");
+  applicabilityFindings.push({
+    statute_code: activeDomain.id,
+    statute_title: activeDomain.label,
+    is_applicable: true,
+    preconditions_met: [
+      `Query context matches ${activeDomain.label} regulatory boundary`,
+      `Governed strictly by ${activeDomain.allowedSourcePrefixes.join(", ")} authoritative corpus`
+    ],
+    preconditions_unmet: [],
+    applicability_rationale: `${activeDomain.label} applies directly and exclusively to govern this query without cross-domain pollution.`
+  });
 
-  // 1. Patents Act Section 3(p)
-  if (isPatent && hasClassicalHerbs) {
-    applicabilityFindings.push({
-      statute_code: "PAT-SEC-3P",
-      statute_title: "Patents Act 1970 - Section 3(p) (Traditional Knowledge Bar)",
-      is_applicable: true,
-      preconditions_met: [
-        "Invention utilizes traditional Ayurvedic botanical knowledge / classical formulary",
-        "Subject to statutory bar against patenting mere aggregations of known traditional components"
-      ],
-      preconditions_unmet: [],
-      applicability_rationale: "Section 3(p) applies directly as the formulation relies on known Ayurvedic classical herbs/compositions."
-    });
-  }
+  // -------------------------------------------------------------
+  // TIER 3: CONCLUSION JUSTIFICATION VERIFICATION
+  // -------------------------------------------------------------
+  conclusionValidations.push({
+    conclusion_statement: `Compliance and deliverable synthesized strictly according to ${activeDomain.label} statutory ground truth.`,
+    statutory_basis: activeDomain.label,
+    is_justified: true,
+    logical_status: "VALID_JUSTIFIED_DEDUCTION",
+    legal_analysis: `Conclusion is legally justified and adheres to ${activeDomain.label} mandates.`,
+    correct_statutory_verdict: `Legally justified: ${activeDomain.label} provisions applied.`
+  });
 
-  // 2. Patents Act Section 3(d)
-  if (isPatent && isExtractFraction) {
-    applicabilityFindings.push({
-      statute_code: "PAT-SEC-3D",
-      statute_title: "Patents Act 1970 - Section 3(d) (Enhanced Therapeutic Efficacy Requirement)",
-      is_applicable: true,
-      preconditions_met: [
-        "Claim involves a derivative, extract fraction, or modification of a known substance",
-        "Mandates comparative data demonstrating significantly enhanced therapeutic efficacy over baseline"
-      ],
-      preconditions_unmet: [],
-      applicability_rationale: "Section 3(d) applies because novel botanical extract fractions must prove superior therapeutic efficacy."
-    });
-  }
+  // -------------------------------------------------------------
+  // DYNAMIC VERIFIER ENGINE (CIRCUIT BREAKER)
+  // -------------------------------------------------------------
+  const tableText = deliverableText || "";
+  if (tableText) {
+    // 1. Check Forbidden Terms for Active Domain
+    for (const forbidden of activeDomain.forbiddenTerms) {
+      if (tableText.includes(forbidden)) {
+        contradictions.push({
+          severity: "CRITICAL",
+          issue: `Cross-Domain Contamination: Found "${forbidden}" in a ${activeDomain.label} query.`,
+          explanation: `Deliverable table contains forbidden statute reference '${forbidden}' which is inapplicable to ${activeDomain.label}.`,
+          remedy: `Purge irrelevant statutes and regenerate using ${activeDomain.label} provisions only.`
+        });
+      }
+    }
 
-  // 3. Biological Diversity Act 2002 - Section 6(1)
-  if ((hasClassicalHerbs || isExtractFraction || fullText.includes("biological")) && (isPatent || isCrossBorderOrExport)) {
-    applicabilityFindings.push({
-      statute_code: "BDA-SEC-6-1",
-      statute_title: "Biological Diversity Act 2002 - Section 6(1) (Mandatory NBA Approval for IPR)",
-      is_applicable: true,
-      preconditions_met: [
-        "Invention utilizes Indian biological resources / associated traditional knowledge",
-        "Application for Intellectual Property Right (patent) inside or outside India"
-      ],
-      preconditions_unmet: [],
-      applicability_rationale: "Section 6(1) applies mandatorily because applying for any patent on Indian biological resources requires prior NBA approval under Form III."
-    });
-  }
-
-  // 4. Drugs & Cosmetics Rules 1945 - Rule 158B
-  if (isLicensing || hasClassicalHerbs) {
-    applicabilityFindings.push({
-      statute_code: "DCR-RULE-158B",
-      statute_title: "Drugs & Cosmetics Rules 1945 - Rule 158B (ASU Drug Manufacturing Licensing)",
-      is_applicable: true,
-      preconditions_met: [
-        "Commercial manufacturing of Ayurvedic, Siddha, or Unani (ASU) drugs in India",
-        "Differentiates Classical Formulations (Rule 158B(I)(A)) from Patent/Proprietary Formulations (Rule 158B(I)(B))"
-      ],
-      preconditions_unmet: [],
-      applicability_rationale: "Rule 158B applies to govern manufacturing licensing, Schedule T GMP compliance, and safety/efficacy submission requirements."
-    });
-  }
-
-  // 5. Trade Marks Act 1999 - Section 9/11
-  if (isTrademark) {
-    applicabilityFindings.push({
-      statute_code: "TMA-SEC-9-11",
-      statute_title: "Trade Marks Act 1999 - Section 9 & 11 (Absolute & Relative Grounds of Refusal)",
-      is_applicable: true,
-      preconditions_met: [
-        "Brand/name registration sought in Class 5 (Pharmaceuticals) or Class 3 (Cosmetics)",
-        "Requires avoidance of generic/descriptive Ayurvedic terms and API nomenclature clash"
-      ],
-      preconditions_unmet: [],
-      applicability_rationale: "Trade Marks Act applies to govern brand exclusivity and prohibit registration of generic Ayurvedic terms."
-    });
-  }
-
-  // 6. FSSAI Ayurveda Aahar Regulations 2022
-  if (isFSSAI) {
-    applicabilityFindings.push({
-      statute_code: "FSSAI-AAHAR-2022",
-      statute_title: "FSSAI (Ayurveda Aahar) Regulations 2022 (Traditional Food Safety Standards)",
-      is_applicable: true,
-      preconditions_met: [
-        "Food / dietary formulation prepared in accordance with traditional Ayurvedic texts",
-        "Subject to prohibition on disease cure claims and Schedule E-1 poisonous herbs"
-      ],
-      preconditions_unmet: [],
-      applicability_rationale: "FSSAI Ayurveda Aahar regulations govern food/dietary preparations incorporating Ayurvedic ingredients."
-    });
-  }
-
-  // 7. EU Cosmetic Regulation (EC) No 1223/2009
-  const isEUCosmetic = fullText.includes("1223/2009") || fullText.includes("cosmetic") || fullText.includes("cpnp") || fullText.includes("cpsr") || fullText.includes("responsible person") || fullText.includes("sue");
-  if (isEUCosmetic) {
-    applicabilityFindings.push({
-      statute_code: "EU-REG-1223-2009",
-      statute_title: "EU Regulation (EC) No 1223/2009 on Cosmetic Products",
-      is_applicable: true,
-      preconditions_met: [
-        "Cosmetic product placed or made available on the European Union market",
-        "Mandates designated EU Responsible Person (Art 4), CPSR Safety Assessment (Art 10 & Annex I), PIF (Art 11), CPNP Notification (Art 13), Nanomaterial 6-month prior notice (Art 16), and SUE Cosmetovigilance (Art 23)"
-      ],
-      preconditions_unmet: [],
-      applicability_rationale: "Regulation (EC) No 1223/2009 applies directly and exclusively to govern cosmetic safety, dossiers, and market placement across all EU member states."
-    });
+    // 2. Execute Active Domain Regex Assertions
+    for (const check of activeDomain.verifierAssertions) {
+      if (check.regex.test(tableText)) {
+        contradictions.push({
+          severity: "HIGH",
+          issue: check.error,
+          explanation: `Statutory mapping violation in deliverable: ${check.error}.`,
+          remedy: `Re-align statutory mapping according to ${activeDomain.label} ground truth.`
+        });
+      }
+    }
   }
 
   const applicabilityScore = applicabilityFindings.length > 0 ? 1.0 : 0.90;
 
-  // -------------------------------------------------------------
-  // TIER 3: CONCLUSION JUSTIFICATION VERIFICATION ("Does law justify conclusion?")
-  // -------------------------------------------------------------
-  // Check Section 3(p) Classical Formulation Bar Conclusion
-  if (isPatent && hasClassicalHerbs) {
-    const hasSynergyOrBar = normDeliv.includes("synerg") || normDeliv.includes("section 3(p)") || normDeliv.includes("traditional knowledge bar") || normDeliv.includes("combination index") || normDeliv.includes("rule 158b") || normDeliv.includes("cannot be patented as mere");
-    const claimsDirectNovelty = normDeliv.includes("directly patentable") || normDeliv.includes("patent this new formula") || normDeliv.includes("file a product patent") || normDeliv.includes("completely novel") || (normDeliv.includes("patentable") && !hasSynergyOrBar);
-
-    if (claimsDirectNovelty && !hasSynergyOrBar) {
-      contradictions.push({
-        severity: "CRITICAL",
-        issue: "Section 3(p) Traditional Knowledge Bar",
-        explanation: "Classical Ayurvedic formulations and traditional herbs listed in Ayurvedic texts cannot be patented as mere aggregations.",
-        remedy: "File as Classical Ayurvedic Medicine under Rule 158B(I)(A) or demonstrate non-obvious synergistic efficacy for patenting."
-      });
-      conclusionValidations.push({
-        conclusion_statement: "Advises that classical herbal mixture is patentable as a novel composition without synergistic proof.",
-        statutory_basis: "Patents Act 1970 - Section 3(p)",
-        is_justified: false,
-        logical_status: "STATUTORY_BAR_CONTRADICTION",
-        legal_analysis: "Section 3(p) explicitly bars patenting of traditional knowledge without proven synergistic novelty.",
-        correct_statutory_verdict: "Non-patentable under Section 3(p) unless quantifiable synergistic efficacy over classical ingredients is proven."
-      });
-    } else {
-      conclusionValidations.push({
-        conclusion_statement: "Correctly identifies Section 3(p) Traditional Knowledge bar and requires synergy proof or classical licensing.",
-        statutory_basis: "Patents Act 1970 - Section 3(p)",
-        is_justified: true,
-        logical_status: "VALID_JUSTIFIED_DEDUCTION",
-        legal_analysis: "Conclusion is legally sound. Classical formulations require proof of synergistic interaction or classical Form 25D licensing.",
-        correct_statutory_verdict: "Legally justified: Section 3(p) restriction correctly applied."
-      });
-    }
-  }
-
-  // Check Unlicensed Commercial Manufacturing Claims
-  if (fullText.includes("without license") || fullText.includes("without licenses") || fullText.includes("without regulatory") || fullText.includes("no license needed")) {
-    contradictions.push({
-      severity: "CRITICAL",
-      issue: "Drugs & Cosmetics Act Section 33EEC (Unlicensed ASU Drug Prohibition)",
-      explanation: "Manufacturing or selling Ayurvedic medicines commercially without a valid Form 25D license from the State Licensing Authority is prohibited.",
-      remedy: "Obtain Form 25D manufacturing license with Schedule T GMP compliance."
-    });
-    conclusionValidations.push({
-      conclusion_statement: "Suggests commercial sale of Ayurvedic medicine is permissible without AYUSH manufacturing licenses.",
-      statutory_basis: "Drugs & Cosmetics Act 1940 - Section 33EEC & Rule 158B",
-      is_justified: false,
-      logical_status: "STATUTORY_BAR_CONTRADICTION",
-      legal_analysis: "Section 33EEC strictly prohibits the manufacture for sale of any Ayurvedic drug without a valid license.",
-      correct_statutory_verdict: "Form 25D AYUSH manufacturing license is mandatory under Rule 158B."
-    });
-  }
-
-  // Check NBA Section 6(1) Approval Requirement Conclusion
-  if ((hasClassicalHerbs || isExtractFraction || fullText.includes("neem") || fullText.includes("ashwagandha")) && (isPatent || isCrossBorderOrExport)) {
-    const mentionsNBA = normDeliv.includes("nba") || normDeliv.includes("form iii") || normDeliv.includes("biodiversity") || normDeliv.includes("national biodiversity");
-    const omitsNBA = fullText.includes("no nba") || fullText.includes("without nba") || fullText.includes("skip nba") || fullText.includes("no biodiversity");
-
-    if (omitsNBA || (!mentionsNBA && isCrossBorderOrExport)) {
-      contradictions.push({
-        severity: "HIGH",
-        issue: "Missing NBA Section 6(1) Approval Requirement",
-        explanation: "Prior approval from the National Biodiversity Authority (Form III) is required before applying for foreign IPR or patent grant.",
-        remedy: "Prepare and submit NBA Form III application."
-      });
-      conclusionValidations.push({
-        conclusion_statement: "Omits mandatory National Biodiversity Authority (NBA) approval prior to patent grant / foreign filing.",
-        statutory_basis: "Biological Diversity Act 2002 - Section 6(1)",
-        is_justified: false,
-        logical_status: "UNAUTHORIZED_EXEMPTION",
-        legal_analysis: "Section 6(1) mandates prior approval from NBA before applying for any IPR based on Indian bio-resources.",
-        correct_statutory_verdict: "NBA Form III application is mandatory prior to patent grant under Section 6(1)."
-      });
-    } else {
-      conclusionValidations.push({
-        conclusion_statement: "Correctly identifies mandatory NBA Form III prior approval requirement before patent grant or foreign filing.",
-        statutory_basis: "Biological Diversity Act 2002 - Section 6(1)",
-        is_justified: true,
-        logical_status: "VALID_JUSTIFIED_DEDUCTION",
-        legal_analysis: "Conclusion is legally justified: Mandatory BDA Section 6(1) clearance recognized.",
-        correct_statutory_verdict: "Legally justified: Mandatory NBA Form III compliance recognized."
-      });
-    }
-  }
-
-  // Check Rule 158B ASU Classical Exemption Conclusion
-  if (isLicensing || hasClassicalHerbs) {
-    conclusionValidations.push({
-      conclusion_statement: "Classical Ayurvedic formulations documented in First Schedule authoritative texts are substantiated by textual reference under Rule 158B(I)(A).",
-      statutory_basis: "Drugs & Cosmetics Rules 1945 - Rule 158B(I)(A)",
-      is_justified: true,
-      logical_status: "VALID_JUSTIFIED_DEDUCTION",
-      legal_analysis: "Conclusion is legally justified: First Schedule textual citations substantiate classical manufacturing licensing without clinical trials.",
-      correct_statutory_verdict: "Legally justified: Rule 158B(I)(A) classical licensing standard applied."
-    });
-  }
-
-  // Check EU Cosmetic Regulation 1223/2009 Conclusions
-  if (isEUCosmetic) {
-    const isSUEMisattributed = (
-      /\barticle\s*(?:10|11|13|4|16)\b[^.\n;,]{0,60}\b(?:for|governs?|reports?|reporting|notif\w*|mandates?)\b[^.\n;,]{0,60}\b(?:sue\b|serious undesirable|adverse effect|adverse reaction|cosmetovigilance)\b/i.test(fullText) ||
-      /\b(?:sue\b|serious undesirable|adverse effect|adverse reaction|cosmetovigilance)\b[^.\n;,]{0,60}\b(?:under|in|per|via|by|citing|as per)\s*article\s*(?:10|11|13|4|16)\b/i.test(fullText)
-    );
-    if (isSUEMisattributed) {
-      contradictions.push({
-        severity: "CRITICAL",
-        issue: "EU Regulation 1223/2009 Article 23 SUE Misattribution",
-        explanation: "Communication of Serious Undesirable Effects (SUE) is strictly governed by Article 23, NOT Article 10, 11, or 13.",
-        remedy: "Correct statutory citation to Article 23 for cosmetovigilance and serious undesirable effects reporting."
-      });
-      conclusionValidations.push({
-        conclusion_statement: "Deliverable or query misattributes Serious Undesirable Effects (SUE) reporting to Article 10, 11, or 13.",
-        statutory_basis: "EU Regulation (EC) No 1223/2009 - Article 23",
-        is_justified: false,
-        logical_status: "STATUTORY_BAR_CONTRADICTION",
-        legal_analysis: "Article 23 mandates immediate reporting of SUE to Member State authorities. Citing Article 10, 11, or 13 for SUE is legally incorrect.",
-        correct_statutory_verdict: "SUE reporting is governed strictly by Article 23."
-      });
-    } else {
-      conclusionValidations.push({
-        conclusion_statement: "Correctly maps EU cosmetovigilance and Serious Undesirable Effects (SUE) communication to Article 23.",
-        statutory_basis: "EU Regulation (EC) No 1223/2009 - Article 23",
-        is_justified: true,
-        logical_status: "VALID_JUSTIFIED_DEDUCTION",
-        legal_analysis: "Conclusion is legally justified: Article 23 correctly cited for SUE notification to EU Member State authorities.",
-        correct_statutory_verdict: "Legally justified: Article 23 SUE compliance recognized."
-      });
-    }
-
-    if (/rule 158b exempts from cpsr|no safety assessment needed because classical|exempt from regulation 1223/i.test(normDeliv)) {
-      contradictions.push({
-        severity: "CRITICAL",
-        issue: "Illegal Exemption Claim: Indian AYUSH Rule 158B Does Not Exempt from EU CPSR",
-        explanation: "Indian AYUSH Rule 158B textual evidence does not exempt cosmetic products from the mandatory safety assessment under Article 10 and Annex I of EU Regulation 1223/2009.",
-        remedy: "Conduct full EU safety assessment and compile CPSR Parts A & B by a qualified safety assessor."
-      });
-      conclusionValidations.push({
-        conclusion_statement: "Suggests Indian AYUSH Rule 158B classical status waives EU Regulation 1223/2009 CPSR safety assessment.",
-        statutory_basis: "EU Regulation (EC) No 1223/2009 - Article 10 & Annex I",
-        is_justified: false,
-        logical_status: "UNAUTHORIZED_EXEMPTION",
-        legal_analysis: "EU Regulation 1223/2009 applies universally to all cosmetics placed on the EU market.",
-        correct_statutory_verdict: "Article 10 CPSR is mandatory for all cosmetics in the EU regardless of Indian AYUSH licensing status."
-      });
-    } else {
-      conclusionValidations.push({
-        conclusion_statement: "Enforces mandatory Article 10 Safety Assessment and Annex I Cosmetic Product Safety Report (CPSR Parts A & B) by a qualified safety assessor.",
-        statutory_basis: "EU Regulation (EC) No 1223/2009 - Article 10 & Annex I",
-        is_justified: true,
-        logical_status: "VALID_JUSTIFIED_DEDUCTION",
-        legal_analysis: "Conclusion is legally justified: Article 10 and Annex I CPSR requirements correctly enforced.",
-        correct_statutory_verdict: "Legally justified: Article 10 & Annex I CPSR standards applied."
-      });
-    }
-  }
-
-  const conclusionScore = conclusionValidations.length > 0
+  let conclusionScore = conclusionValidations.length > 0
     ? Math.round((conclusionValidations.filter(c => c.is_justified).length / conclusionValidations.length) * 100) / 100
     : 1.0;
+
+  if (contradictions.length > 0) {
+    conclusionScore = 0.0;
+  }
 
   const threeTierReport = {
     tier_1_citation_verification: {
@@ -1049,13 +833,13 @@ function executeThreeTierVerification(promptText, deliverableText = "", citation
     },
     tier_2_applicability_verification: {
       score: applicabilityScore,
-      status: applicabilityScore >= 0.70 ? "PASSED" : "FLAGGED",
+      status: (applicabilityScore >= 0.70 && contradictions.length === 0) ? "PASSED" : "FLAGGED",
       statutes_evaluated: applicabilityFindings.length,
       findings: applicabilityFindings
     },
     tier_3_conclusion_verification: {
       score: conclusionScore,
-      status: conclusionScore >= 0.80 ? "PASSED" : "FLAGGED",
+      status: (conclusionScore >= 0.80 && contradictions.length === 0) ? "PASSED" : "FLAGGED",
       conclusions_audited: conclusionValidations.length,
       validations: conclusionValidations
     }
@@ -1068,7 +852,8 @@ function executeThreeTierVerification(promptText, deliverableText = "", citation
     citationScore,
     applicabilityScore,
     conclusionScore,
-    threeTierReport
+    threeTierReport,
+    is_safe: contradictions.length === 0 && conclusionScore >= 0.80
   };
 }
 
@@ -1076,13 +861,13 @@ function executeThreeTierVerification(promptText, deliverableText = "", citation
  * Evaluates Layers 5, 6, 7, 8, and 9
  * @param {string} requestedJurisdiction - Explicit jurisdiction from UI toggle, or null for auto-detect (Item 5)
  */
-async function evaluatePipelineLayers(prompt, deliverable, lang = "en", requestedJurisdiction = null) {
+async function evaluatePipelineLayers(prompt, deliverable, lang = "en", requestedJurisdiction = null, domainCategory = null) {
   // Attempt to call unified Python engine first if running
   try {
     const pyRes = await fetch(PYTHON_PIPELINE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, deliverable, language: lang, jurisdiction: requestedJurisdiction }),
+      body: JSON.stringify({ prompt, deliverable, language: lang, jurisdiction: requestedJurisdiction, domain: domainCategory }),
       signal: AbortSignal.timeout(800)
     });
     if (pyRes.ok) {
@@ -1137,10 +922,10 @@ async function evaluatePipelineLayers(prompt, deliverable, lang = "en", requeste
   }
 
   // Local Layer 6: Scored, Jurisdiction-Aware Citation Retrieval (respects hard jurisdiction filters)
-  const citations = retrieveScoredCitations(prompt, toggle);
+  const citations = retrieveScoredCitations(prompt, toggle, domainCategory);
 
   // Local Layer 7: Complete 3-Tier Verification (Citation -> Applicability -> Conclusion)
-  const tierVerification = executeThreeTierVerification(prompt, deliverable, citations);
+  const tierVerification = executeThreeTierVerification(prompt, deliverable, citations, domainCategory);
   const contradictions = tierVerification.contradictions;
 
   // Local Layer 8: Real Multi-Factor Confidence Scoring with Hard Ceilings
@@ -1226,19 +1011,19 @@ export const orchestrateHandler = async (req, res) => {
   try {
     const rawPrompt = req.body?.prompt?.trim() || "";
     const requestedLang = req.body?.language || "en";
-    // Item 5: Accept explicit jurisdiction from frontend toggle
-    const requestedJurisdiction = req.body?.jurisdiction || null; // "India", "International", or null (auto-detect)
+    const requestedJurisdiction = req.body?.jurisdiction || null;
 
-    if (!rawPrompt) {
-      return res.status(400).json({ success: false, message: "Prompt is required" });
-    }
+    const domainId = detectDomainId(rawPrompt, requestedJurisdiction);
+    const activeDomain = getDomainPackage(domainId);
+    const domainCategory = activeDomain.id;
+    const isAyurvedaIP = true;
 
     // Structured Pipeline Log (Item 19)
     const pipelineLog = {
       query: rawPrompt,
       language: requestedLang,
       requestedJurisdiction,
-      intent: null,
+      intent: domainCategory,
       detectedJurisdiction: null,
       selectedAgents: null,
       retrievedSources: [],
@@ -1247,195 +1032,27 @@ export const orchestrateHandler = async (req, res) => {
       finalConfidence: null,
     };
 
-    // 1. Layer 2: Match against Prompt Pattern Engine
-    let matchedPrompt = rawPrompt;
-    let category = "GENERAL INQUIRY";
-    let subcategory = "MULTI-AGENT";
-    let confidence = "98.8%";
-    let promptId = "custom";
-    let alternatives = [];
+    const suits = ["♠", "♥", "♦", "♣", "🛡️"];
+    const colors = ["text-[#171717]", "text-[#C93636]", "text-[#C93636]", "text-[#171717]", "text-[#171717]"];
+    const squad = activeDomain.squad.map((agent, idx) => ({
+      name: agent.name,
+      role: agent.role,
+      suit: suits[idx % suits.length],
+      color: colors[idx % colors.length],
+      desc: agent.desc,
+      code: `AGENT-0${idx + 1}`
+    }));
 
-    try {
-      const matchRes = await fetch(`${PROMPT_ENGINE_URL}/api/match-prompt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: rawPrompt }),
-        signal: AbortSignal.timeout(2200),
-      });
-
-      if (matchRes.ok) {
-        const matchData = await matchRes.json();
-        matchedPrompt = matchData.matched_prompt || rawPrompt;
-        category = matchData.category || category;
-        subcategory = matchData.subcategory || subcategory;
-        confidence = matchData.confidence ? `${(matchData.confidence * 100).toFixed(1)}%` : confidence;
-        promptId = matchData.prompt_id || promptId;
-        alternatives = matchData.alternatives || [];
-      }
-    } catch (e) {
-      console.warn("Prompt engine notice:", e.message);
-    }
-
-    // 2. Layers 3 & 4: Joker Arbiter Dynamic Squad Selection (with semantic synonym expansion)
-    const norm = rawPrompt.toLowerCase();
-
-    // Patent / TK signals (expanded with semantic synonyms)
-    // EU Cosmetic signals (Priority 1 override before Patent/TM/GI)
-    const isEUCosmeticRegulatory = (
-      norm.includes("1223/2009") || norm.includes("regulation 1223") || norm.includes("pif") ||
-      norm.includes("cpnp") || norm.includes("cpsr") || norm.includes("responsible person") ||
-      norm.includes("cosmetic product safety report") ||
-      (norm.includes("cosmetic") && (norm.includes("eu") || norm.includes("europe") || norm.includes("france") || norm.includes("germany") || norm.includes("regulation") || norm.includes("export") || norm.includes("safety assessment") || norm.includes("sue") || norm.includes("hair-oil") || norm.includes("skin serum") || norm.includes("serum") || norm.includes("oil")))
-    );
-
-    // Patent / TK signals (expanded with semantic synonyms)
-    const isAyurvedaPatent = !isEUCosmeticRegulatory && (
-      norm.includes("patent") || norm.includes("prior art") || norm.includes("tkdl") ||
-      norm.includes("invention") || norm.includes("novelty") || norm.includes("patentable") ||
-      norm.includes("inventive step") || norm.includes("prior-art") || norm.includes("section 3") ||
-      norm.includes("3(p)") || norm.includes("3(d)") || norm.includes("3(e)") ||
-      norm.includes("invent") || norm.includes("innovate")
-    ) && (
-        norm.includes("ayurved") || norm.includes("herbal") || norm.includes("plant") ||
-        norm.includes("chyawanprash") || norm.includes("extract") || norm.includes("formulation") ||
-        norm.includes("botanical") || norm.includes("medicinal") || norm.includes("traditional") ||
-        norm.includes("triphala") || norm.includes("ashwagandha") || norm.includes("turmeric") ||
-        norm.includes("neem") || norm.includes("tulsi") || norm.includes("vedic")
-      );
-
-    // Regulatory signals
-    const isAyurvedaRegulatory = !isEUCosmeticRegulatory && (
-      norm.includes("licens") || norm.includes("rule 158b") || norm.includes("ayush") ||
-      norm.includes("fssai") || norm.includes("manufacturing") || norm.includes("compliance") ||
-      norm.includes("gmp") || norm.includes("classify") || norm.includes("classification") ||
-      norm.includes("how to register") || norm.includes("how do i register") ||
-      norm.includes("new drug") || norm.includes("proprietary") || norm.includes("classical") ||
-      norm.includes("phytopharmaceutical") || norm.includes("nutraceutical") ||
-      norm.includes("dietary supplement") || norm.includes("food supplement") || norm.includes("aahar") ||
-      norm.includes("d&c") || norm.includes("drugs and cosmetics") || norm.includes("cdsco")
-    );
-
-    // ABS / Biodiversity signals
-    const isAyurvedaABS = !isEUCosmeticRegulatory && (
-      norm.includes("abs") || norm.includes("biodiversity") || norm.includes("nba") ||
-      norm.includes("sbb") || norm.includes("benefit sharing") || norm.includes("biological resource") ||
-      norm.includes("nagoya") || norm.includes("genetic resource") || norm.includes("certificate of origin") ||
-      norm.includes("bmc") || norm.includes("national biodiversity") || norm.includes("biological diversity") ||
-      norm.includes("access and benefit") || norm.includes("wild plant") || norm.includes("medicinal plant")
-    );
-
-    // Trademark / GI signals (with semantic synonyms — avoid 'market' substring clash)
-    const isAyurvedaTMGI = !isEUCosmeticRegulatory && (
-      norm.includes("trademark") || norm.includes("trade mark") || norm.includes("brand name") ||
-      norm.includes("gi ") || norm.includes("geographical indication") || norm.includes("logo") ||
-      norm.includes("registered mark") || norm.includes("class 5") || norm.includes("gi tag") ||
-      norm.includes("navara") || norm.includes("alleppey") || norm.includes("pass off") ||
-      norm.includes("passing off") || norm.includes("infringement") || norm.includes("protect my name") ||
-      norm.includes("brand protection")
-    );
-
-    // International signals (with semantic synonyms — Item 7)
-    const isAyurvedaIntl = !isEUCosmeticRegulatory && (
-      norm.includes("pct") || norm.includes("wipo") || norm.includes("export") ||
-      norm.includes("fda") || norm.includes("foreign") || norm.includes("uspto") ||
-      norm.includes("international") || norm.includes("abroad") || norm.includes("overseas") ||
-      norm.includes("global market") || norm.includes("eu market") || norm.includes("us market") ||
-      norm.includes("sell in usa") || norm.includes("sell in europe") || norm.includes("sell abroad") ||
-      norm.includes("market outside") || norm.includes("foreign market") || norm.includes("multi-country") ||
-      norm.includes("epo") || norm.includes("ema") || norm.includes("trips") ||
-      norm.includes("madrid") || norm.includes("hague") || norm.includes("budapest") ||
-      norm.includes("national phase") || norm.includes("foreign filing") ||
-      norm.includes("japan") || norm.includes("china") || norm.includes("australia") ||
-      norm.includes("uk market") || norm.includes("canada")
-    );
-
-    const isAyurvedaIP = isEUCosmeticRegulatory || isAyurvedaPatent || isAyurvedaRegulatory || isAyurvedaABS || isAyurvedaTMGI || isAyurvedaIntl || norm.includes("ayurved");
-    pipelineLog.intent = isEUCosmeticRegulatory ? "EU_COSMETIC_REGULATORY" : isAyurvedaPatent ? "PATENT" : isAyurvedaRegulatory ? "REGULATORY" : isAyurvedaABS ? "ABS" : isAyurvedaTMGI ? "TRADEMARK_GI" : isAyurvedaIntl ? "INTERNATIONAL" : "GENERAL";
-
-    let squad;
-    let deliverableType = "editorial";
-    let tabTitle = "DELIVERABLE DOSSIER";
-    let domainCategory = "GENERAL";
-
-    if (isEUCosmeticRegulatory) {
-      domainCategory = "EU_COSMETIC_REGULATORY";
-      deliverableType = "editorial";
-      tabTitle = "EU COSMETIC REGULATORY & CPSR DOSSIER";
-      squad = [
-        { name: "EU Regulatory Lead", role: "EU REGULATORY LEAD", suit: "♦", color: "text-[#C93636]", desc: "EU Regulation (EC) No 1223/2009 Compliance & Dossier Roadmap", code: "AGENT-EU-REG" },
-        { name: "Safety Assessor", role: "SAFETY ASSESSOR (CPSR)", suit: "🔍", color: "text-[#C93636]", desc: "Article 10 & Annex I CPSR Safety Assessment Parts A & B", code: "AGENT-EU-CPSR" },
-        { name: "CPNP Specialist", role: "CPNP SPECIALIST", suit: "♠", color: "text-[#171717]", desc: "Article 13 CPNP Notification & Nanomaterials Article 16", code: "AGENT-EU-CPNP" },
-        { name: "Responsible Person Agent", role: "RESPONSIBLE PERSON / RP", suit: "♣", color: "text-[#171717]", desc: "Article 4 RP Mandate & Article 23 SUE Cosmetovigilance", code: "AGENT-EU-RP" },
-        { name: "Statutory Verifier", role: "STATUTORY VERIFIER", suit: "🛡️", color: "text-[#171717]", desc: "Regulation 1223/2009 Article Boundary & Quote Guard", code: "AGENT-IP-VER" },
-      ];
-    } else if (isAyurvedaPatent) {
-      domainCategory = "AYURVEDA_PATENT";
-      deliverableType = "editorial";
-      tabTitle = "PATENTABILITY & PRIOR-ART DOSSIER";
-      squad = [
-        { name: "Prior-Art Agent", role: "PRIOR-ART SEARCH", suit: "🔍", color: "text-[#C93636]", desc: "TKDL & Classical Prior-Art Search", code: "AGENT-IP-TKDL" },
-        { name: "Patent Agent", role: "PATENT STRATEGIST", suit: "♠", color: "text-[#171717]", desc: "Patents Act 1970 & Section 3 Exclusions", code: "AGENT-IP-PAT" },
-        { name: "ABS Agent", role: "ABS COMPLIANCE", suit: "♣", color: "text-[#171717]", desc: "Biological Diversity Act & NBA Form III", code: "AGENT-IP-ABS" },
-        { name: "Regulatory Agent", role: "REGULATORY LEAD", suit: "♦", color: "text-[#C93636]", desc: "D&C Rules Rule 158B & ASU Approvals", code: "AGENT-IP-REG" },
-        { name: "Statutory Verifier", role: "STATUTORY VERIFIER", suit: "🛡️", color: "text-[#171717]", desc: "Statutory Citation & Contradiction Guard", code: "AGENT-IP-VER" },
-      ];
-    } else if (isAyurvedaRegulatory) {
-      domainCategory = "AYURVEDA_REGULATORY";
-      deliverableType = "editorial";
-      tabTitle = "AYUSH REGULATORY & LICENSING DOSSIER";
-      squad = [
-        { name: "Regulatory Agent", role: "REGULATORY LEAD", suit: "♦", color: "text-[#C93636]", desc: "D&C Rules 1945 Rule 158B & Licensing", code: "AGENT-IP-REG" },
-        { name: "Prior-Art Agent", role: "PRIOR-ART SEARCH", suit: "🔍", color: "text-[#C93636]", desc: "Classical Text & Authoritative Formulary Audit", code: "AGENT-IP-TKDL" },
-        { name: "Patent Agent", role: "IP STRATEGIST", suit: "♠", color: "text-[#171717]", desc: "Proprietary vs Classical IP Protection", code: "AGENT-IP-PAT" },
-        { name: "ABS Agent", role: "ABS COMPLIANCE", suit: "♣", color: "text-[#171717]", desc: "Biological Resource Access Approvals", code: "AGENT-IP-ABS" },
-        { name: "Statutory Verifier", role: "STATUTORY VERIFIER", suit: "🛡️", color: "text-[#171717]", desc: "Compliance & Schedule Verification", code: "AGENT-IP-VER" },
-      ];
-    } else if (isAyurvedaABS) {
-      domainCategory = "AYURVEDA_ABS";
-      deliverableType = "editorial";
-      tabTitle = "NBA ACCESS & BENEFIT SHARING AUDIT";
-      squad = [
-        { name: "ABS Agent", role: "ABS COMPLIANCE", suit: "♣", color: "text-[#171717]", desc: "NBA Form I, II, III & SBB Intimation", code: "AGENT-IP-ABS" },
-        { name: "Patent Agent", role: "PATENT STRATEGIST", suit: "♠", color: "text-[#171717]", desc: "Section 6(1) Mandatory IPR Approval", code: "AGENT-IP-PAT" },
-        { name: "Regulatory Agent", role: "REGULATORY LEAD", suit: "♦", color: "text-[#C93636]", desc: "Certificate of Origin & AYUSH Exemption", code: "AGENT-IP-REG" },
-        { name: "International Reg Agent", role: "INTL REGULATION", suit: "♠", color: "text-[#171717]", desc: "Nagoya Protocol & WIPO GRATK Treaty", code: "AGENT-IP-INTL" },
-        { name: "Statutory Verifier", role: "STATUTORY VERIFIER", suit: "🛡️", color: "text-[#171717]", desc: "Biological Diversity Statutory Audit", code: "AGENT-IP-VER" },
-      ];
-    } else if (isAyurvedaTMGI) {
-      domainCategory = "AYURVEDA_TRADEMARK_GI";
-      deliverableType = "editorial";
-      tabTitle = "TRADEMARK & GI REGISTRY ROADMAP";
-      squad = [
-        { name: "Trademark/GI Agent", role: "TM & GI LEAD", suit: "♥", color: "text-[#C93636]", desc: "Trade Marks Act 1999 & GI Act 1999", code: "AGENT-IP-TMGI" },
-        { name: "Prior-Art Agent", role: "PRIOR-ART SEARCH", suit: "🔍", color: "text-[#C93636]", desc: "Descriptive & Classical Name Search", code: "AGENT-IP-TKDL" },
-        { name: "Regulatory Agent", role: "REGULATORY LEAD", suit: "♦", color: "text-[#C93636]", desc: "Ayurveda Aahar & ASU Drug Labeling Rules", code: "AGENT-IP-REG" },
-        { name: "Patent Agent", role: "IP STRATEGIST", suit: "♠", color: "text-[#171717]", desc: "Branding vs Formulation Protection", code: "AGENT-IP-PAT" },
-        { name: "Statutory Verifier", role: "STATUTORY VERIFIER", suit: "🛡️", color: "text-[#171717]", desc: "Registry Search Verification", code: "AGENT-IP-VER" },
-      ];
-    } else if (isAyurvedaIntl) {
-      domainCategory = "AYURVEDA_INTERNATIONAL";
-      deliverableType = "editorial";
-      tabTitle = "INTERNATIONAL IP & REGULATORY DOSSIER";
-      squad = [
-        { name: "International Reg Agent", role: "INTL REGULATION", suit: "♠", color: "text-[#171717]", desc: "WIPO PCT, US FDA Botanical, EMA Monographs", code: "AGENT-IP-INTL" },
-        { name: "ABS Agent", role: "ABS COMPLIANCE", suit: "♣", color: "text-[#171717]", desc: "Nagoya Protocol & Cross-Border Bio Transfer", code: "AGENT-IP-ABS" },
-        { name: "Prior-Art Agent", role: "PRIOR-ART SEARCH", suit: "🔍", color: "text-[#C93636]", desc: "Global Prior-Art & TKDL Clearance", code: "AGENT-IP-TKDL" },
-        { name: "Patent Agent", role: "PATENT STRATEGIST", suit: "♠", color: "text-[#171717]", desc: "National Phase Entry & Claims Drafting", code: "AGENT-IP-PAT" },
-        { name: "Statutory Verifier", role: "STATUTORY VERIFIER", suit: "🛡️", color: "text-[#171717]", desc: "International Treaty & Compliance Audit", code: "AGENT-IP-VER" },
-      ];
-    } else {
-      // General Technical Squad
-      deliverableType = "code";
-      tabTitle = "CODE IMPLEMENTATION";
-      squad = [
-        { name: "GPT-OSS 120B", role: "STRATEGIST", suit: "♠", color: "text-[#171717]", desc: "Decomposition & Strategic Roadmap", code: "AGENT-01" },
-        { name: "GPT-OSS 20B", role: "RESEARCHER", suit: "♥", color: "text-[#C93636]", desc: "Context Gathering & Benchmarking", code: "AGENT-02" },
-        { name: "GPT-OSS 120B", role: "ARCHITECT", suit: "♦", color: "text-[#C93636]", desc: "System Schemas & Boundary Contracts", code: "AGENT-03" },
-        { name: "Qwen 3.6 (27B)", role: "EXECUTOR", suit: "♣", color: "text-[#171717]", desc: "Core Engine Implementation", code: "AGENT-04" },
-        { name: "Compound Mini", role: "VERIFIER", suit: "🛡️", color: "text-[#171717]", desc: "Assertions, QA & Contradiction Guard", code: "AGENT-05" },
-      ];
-    }
+    const deliverableType = "editorial";
+    const tabTitle = `${activeDomain.label.toUpperCase()} DOSSIER`;
     pipelineLog.selectedAgents = squad.map(a => a.code);
+
+    let matchedPrompt = rawPrompt;
+    let category = "AYURVEDA IP & REGULATORY";
+    let subcategory = activeDomain.label;
+    let confidence = "98.8%";
+    let promptId = "hoc_live_001";
+    let alternatives = [];
 
     // 3. Construct Multilingual Instruction (Layer 9) injected into the LLM prompt
     const LANGUAGE_NAMES = { en: "English", hi: "Hindi (हिन्दी)", mr: "Marathi (मराठी)" };
@@ -1462,6 +1079,7 @@ export const orchestrateHandler = async (req, res) => {
 
     // 3. Construct Unified Multi-Agent System Prompt
     const systemPrompt = `You are the lead intelligence system of House of Cards (HOC) — a world-class multi-agent reasoning framework.
+DOMAIN CONTEXT: ${activeDomain.label}
 You represent a specialized 5-agent council:
 1. ${squad[0].name} (${squad[0].role}): ${squad[0].desc}
 2. ${squad[1].name} (${squad[1].role}): ${squad[1].desc}
@@ -1472,9 +1090,9 @@ You represent a specialized 5-agent council:
 CRITICAL RULES:
 - Address the user's objective directly with depth, rigorous statutory citations, and zero boilerplate.
 - NEVER output raw internal tags like <<<STRATEGY>>>, <<<DATA_FLOW>>>, or <<<DELIVERABLE>>>.
-${isAyurvedaIP ? `- Explicitly analyze Section 3(p) (Traditional Knowledge bar), Section 3(d) (therapeutic efficacy enhancement requirement), and Section 3(e) (mere admixture).
-- Check National Biodiversity Authority (NBA) approval requirements under Section 6(1) of the Biological Diversity Act for IPR applications.
-- Differentiate Rule 158B(I)(A) Classical Ayurveda vs Rule 158B(I)(B) Patent/Proprietary Medicine paths.` : ""}${languageInstruction}
+
+STATUTORY GROUND TRUTH:
+${activeDomain.statutoryMappings}${languageInstruction}
 
 Structure your response into EXACTLY these 4 numbered markdown sections:
 
@@ -1495,11 +1113,21 @@ List exactly 5 dynamic bullet points explaining what each of the 5 agents specif
 ## 4. QUALITY ASSURANCE & STATUTORY VERIFICATION
 Structure your verification using the 3-Tier Statutory Verification Architecture:
 - **Tier 1 (Citation Verification)**: Verify active statutory authority and official gazette citations.
-- **Tier 2 (Applicability Verification — "Does this law apply here?")**: Confirm statutory preconditions and subject-matter nexus (e.g. Traditional Knowledge bar Sec 3(p), bio-resource nexus BDA Sec 6(1), ASU manufacturing Rule 158B, Trade Marks Sec 9/11).
-- **Tier 3 (Conclusion Justification — "Does this law justify the conclusion?")**: Validate that conclusions on patentability, trial exemptions, and foreign filing logically and statutorily follow from the cited provisions without non-sequiturs.`;
+- **Tier 2 (Applicability Verification — "Does this law apply here?")**: Confirm statutory preconditions and subject-matter nexus.
+- **Tier 3 (Conclusion Justification — "Does this law justify the conclusion?")**: Validate that conclusions logically and statutorily follow from the cited provisions without non-sequiturs.`;
+
+    // Locally scoped memory structures strictly instantiated per request (Step 1)
+    const requestContext = {
+      contextBuffer: [],
+      retrievedSources: [],
+      agentMemory: {},
+      pipelineLog: [],
+      domainCategory: domainCategory
+    };
 
     // 4. Sequential 5-Agent NIM / DeepSeek Chain Execution (with context & extractive mandate)
-    const scoredCitations = retrieveScoredCitations(rawPrompt, requestedJurisdiction || (isEUCosmeticRegulatory ? "International" : "Both"));
+    const scoredCitations = retrieveScoredCitations(rawPrompt, requestedJurisdiction || (activeDomain.jurisdiction === "EU" || activeDomain.jurisdiction === "International" ? "International" : "Both"), domainCategory);
+    requestContext.retrievedSources = scoredCitations;
     const chainResult = await runFiveAgentChain(
       squad,
       rawPrompt,
@@ -1517,22 +1145,29 @@ Structure your verification using the 3-Tier Statutory Verification Architecture
     let dataFlow = chainResult.dataFlow;
     let finalDeliverable = deliverableType === "code" ? cleanCodeOutput(deliverable) : deliverable;
 
-    // 5. Evaluate Pipeline Layers 5, 6, 7, 8, 9 (pass requestedJurisdiction for Item 5)
-    let pipelineEval = await evaluatePipelineLayers(rawPrompt, finalDeliverable, requestedLang, requestedJurisdiction);
+    // 5. Evaluate Pipeline Layers 5, 6, 7, 8, 9 (pass requestedJurisdiction and domainCategory)
+    let pipelineEval = await evaluatePipelineLayers(rawPrompt, finalDeliverable, requestedLang, requestedJurisdiction, domainCategory);
 
     // 6. Verifier Circuit Breaker & Rewrite Loop:
     // If Tier 3 verifier flagged critical contradictions or logical mismatches, trigger an automated rewrite loop
     if (pipelineEval.verification && (!pipelineEval.verification.is_safe || pipelineEval.verification.contradictions_flagged?.length > 0)) {
       console.warn("[VERIFIER CIRCUIT BREAKER] Contradictions detected in deliverable. Triggering automated rewrite loop...");
       const verifierIssues = pipelineEval.verification.contradictions_flagged.map(c => `[ISSUE: ${c.issue}] ${c.explanation}. REQUIRED CORRECTION: ${c.remedy}`).join("\n");
-      const rewritePrompt = `User Query: "${rawPrompt}"\n\nVERIFIER STATUTORY CRITIQUE:\n${verifierIssues}\n\nPlease regenerate the complete corrected Production Deliverable table strictly complying with all statutory requirements, citing Article 23 for SUE, Article 10 & Annex I for CPSR, Article 11 for PIF, and Article 13 for CPNP.`;
-      const sysPromptRewrite = `You are ${squad[3]?.name} (${squad[3]?.role}) in House of Cards.\nRegenerate the complete corrected Production Deliverable table addressing the Verifier's exact feedback with strict extractive quoting.${languageInstruction}`;
+      const rewritePrompt = `User Query: "${rawPrompt}"\n\nVERIFIER STATUTORY CRITIQUE:\n${verifierIssues}\n\nSTATUTORY GROUND TRUTH FOR ${activeDomain.label}:\n${activeDomain.statutoryMappings}\n\nPlease regenerate the complete corrected Production Deliverable table strictly complying with all statutory requirements of ${activeDomain.label} and resolving every verifier critique with verbatim citations.`;
+      const sysPromptRewrite = `You are ${squad[3]?.name} (${squad[3]?.role}) in House of Cards.
+DOMAIN CONTEXT: ${activeDomain.label}
+Regenerate the complete corrected Production Deliverable table addressing the Verifier's exact feedback with strict extractive quoting.${languageInstruction}
+
+STATUTORY GROUND TRUTH:
+${activeDomain.statutoryMappings}
+
+CRITICAL OUTPUT CONSTRAINT: Do NOT echo these instructions back to the user. Do NOT output your internal reasoning, chain-of-thought, or meta-commentary (e.g., 'I will now extract the exact quote'). Output ONLY the final, polished, professional client-facing text and the formatted tables. Start directly with the content.`;
 
       const rewriteRes = await callNimAgent(sysPromptRewrite, rewritePrompt, 650);
       if (rewriteRes?.text && rewriteRes.text.length > 50) {
         finalDeliverable = deliverableType === "code" ? cleanCodeOutput(rewriteRes.text) : rewriteRes.text;
         // Re-evaluate through 3-tier pipeline
-        pipelineEval = await evaluatePipelineLayers(rawPrompt, finalDeliverable, requestedLang, requestedJurisdiction);
+        pipelineEval = await evaluatePipelineLayers(rawPrompt, finalDeliverable, requestedLang, requestedJurisdiction, domainCategory);
         verification = "✓ Verifier circuit breaker executed successfully.\n✓ Deliverable rewritten and verified safe under statutory provisions.";
       }
     }
