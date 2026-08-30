@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IP-SAKTI Sahayak | Layers 7, 8 & 9 Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-badge">
+          <span class="logo-icon">🌿</span>
+          <span class="logo-sub">PS #29</span>
+        </div>
+        <div class="title-block">
+          <h1>IP-SAKTI Sahayak</h1>
+          <p class="subtitle">House of Cards Multi-Agent Engine • Layers 7, 8 & 9</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <!-- Language Selector -->
+        <div class="lang-selector-group">
+          <label for="lang-select">🌐 Language / भाषा:</label>
+          <div class="lang-pills">
+            <button class="lang-pill active" data-lang="en" id="btn-lang-en">English</button>
+            <button class="lang-pill" data-lang="hi" id="btn-lang-hi">हिन्दी</button>
+            <button class="lang-pill" data-lang="mr" id="btn-lang-mr">मराठी</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Architecture Visualizer -->
+    <section class="arch-overview">
+      <div class="arch-flow">
+        <div class="arch-node upstream" title="Layers 1-6 Upstream">
+          <span class="node-num">L1-L6</span>
+          <span class="node-label">Prompt Matcher ➔ Joker ➔ IP/TKDL Agents</span>
+        </div>
+        <div class="arch-arrow">➔</div>
+        <div class="arch-node active-layer layer-7" title="Layer 7: Verification Agent">
+          <span class="node-badge">L7</span>
+          <span class="node-title">Verification Agent</span>
+          <span class="node-desc">Groundedness • Statutes • Contradictions</span>
+        </div>
+        <div class="arch-arrow">➔</div>
+        <div class="arch-node active-layer layer-8" title="Layer 8: Confidence & Escalation">
+          <span class="node-badge">L8</span>
+          <span class="node-title">Confidence & Escalation</span>
+          <span class="node-desc">Calibrated Score • Attorney Dossier • Safe Refusal</span>
+        </div>
+        <div class="arch-arrow">➔</div>
+        <div class="arch-node active-layer layer-9" title="Layer 9: Multilingual">
+          <span class="node-badge">L9</span>
+          <span class="node-title">Multilingual Engine</span>
+          <span class="node-desc">EN • HI • MR • Domain Terminology</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Workspace -->
+    <main class="main-layout">
+      <!-- Left Column: Scenario & Query Selection -->
+      <aside class="sidebar-panel">
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>🧪 Benchmark Test Scenarios</h3>
+            <span class="info-badge">Layers 1-6 Inputs</span>
+          </div>
+          <div class="scenario-list" id="scenario-list">
+            <!-- Populated dynamically via JS -->
+            <div class="loading-state">Loading benchmark cases...</div>
+          </div>
+
+          <div class="divider"><span>OR CUSTOM TEST</span></div>
+
+          <div class="custom-query-form">
+            <div class="form-group">
+              <label for="custom-product">Product / Compound Name</label>
+              <input type="text" id="custom-product" placeholder="e.g. Ashwagandha Nano-Emulsion" value="Neem-Tulsi Synergistic Drops">
+            </div>
+            <div class="form-group">
+              <label for="custom-category">Ayurveda Classification</label>
+              <select id="custom-category">
+                <option value="Classical Ayurvedic Medicine">Classical Ayurvedic Medicine</option>
+                <option value="Proprietary Ayurvedic Medicine" selected>Proprietary Ayurvedic Medicine</option>
+                <option value="Phytopharmaceutical Drug">Phytopharmaceutical Drug</option>
+                <option value="Ayurveda Aahar / Nutraceutical">Ayurveda Aahar / Nutraceutical</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="custom-ingredients">Key Botanical Ingredients</label>
+              <input type="text" id="custom-ingredients" placeholder="Comma separated" value="Azadirachta indica (Neem), Ocimum sanctum (Tulsi)">
+            </div>
+            <div class="form-group">
+              <label for="custom-query">User Question / Proposed Claim</label>
+              <textarea id="custom-query" rows="2" placeholder="What are the patent and AYUSH licensing requirements?">Can we file a process patent and obtain AYUSH manufacturing license under Rule 158B in India?</textarea>
+            </div>
+            <button class="btn-primary" id="btn-run-custom">
+              <span>🚀 Execute Verification & Synthesis</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Column: Verification, Confidence & Multilingual Results -->
+      <section class="results-container">
+        <!-- Status Bar -->
+        <div class="status-banner" id="status-banner">
+          <div class="banner-left">
+            <span class="badge" id="product-badge">Loading...</span>
+            <span class="badge badge-conf" id="conf-badge">CALCULATING</span>
+          </div>
+          <div class="banner-right">
+            <span class="query-id" id="query-id-tag">ID: QRY-INIT</span>
+          </div>
+        </div>
+
+        <!-- Layer 7 & Layer 8 Metric Dashboards -->
+        <div class="metrics-grid">
+          <!-- Layer 7 Verification Panel (3-Tier Pipeline) -->
+          <div class="metric-card layer-card-7">
+            <div class="card-top">
+              <h4>✅ Layer 7: 3-Tier Statutory Verification</h4>
+              <span class="pill-status" id="l7-status-pill">PASSED</span>
+            </div>
+            <div class="meters-row">
+              <div class="meter-col">
+                <span class="meter-val" id="val-citation">0%</span>
+                <span class="meter-name">Tier 1: Citation Guard</span>
+                <div class="progress-bar"><div class="progress-fill" id="fill-citation" style="width: 0%"></div></div>
+              </div>
+              <div class="meter-col">
+                <span class="meter-val" id="val-applicability">0%</span>
+                <span class="meter-name">Tier 2: Law Applicability</span>
+                <div class="progress-bar"><div class="progress-fill" id="fill-applicability" style="width: 0%"></div></div>
+              </div>
+              <div class="meter-col">
+                <span class="meter-val" id="val-conclusion">0%</span>
+                <span class="meter-name">Tier 3: Logic Justified</span>
+                <div class="progress-bar"><div class="progress-fill" id="fill-conclusion" style="width: 0%"></div></div>
+              </div>
+              <div class="meter-col">
+                <span class="meter-val" id="val-groundedness">0%</span>
+                <span class="meter-name">Evidence Groundedness</span>
+                <div class="progress-bar"><div class="progress-fill" id="fill-groundedness" style="width: 0%"></div></div>
+              </div>
+            </div>
+            <div class="audit-summary-box" id="l7-summary-text">
+              Verification audit loading...
+            </div>
+          </div>
+
+          <!-- Layer 8 Confidence & Escalation Panel -->
+          <div class="metric-card layer-card-8">
+            <div class="card-top">
+              <h4>🎯 Layer 8: Confidence & Escalation</h4>
+              <span class="pill-status" id="l8-status-pill">NORMAL</span>
+            </div>
+            <div class="confidence-display">
+              <div class="score-circle" id="circle-score">
+                <span class="circle-val" id="val-conf-percent">0%</span>
+                <span class="circle-sub">Confidence</span>
+              </div>
+              <div class="conf-details">
+                <p class="conf-justification" id="conf-justification-text">Calculating score...</p>
+                <div class="escalation-alert-badge hidden" id="escalation-tag">
+                  <span class="alert-icon">⚠️</span>
+                  <span class="alert-msg" id="escalation-tag-msg">Escalation Required</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Safe Refusal / Contradiction Alert Box (Dynamic) -->
+        <div class="refusal-box hidden" id="refusal-box">
+          <div class="refusal-header">
+            <span class="refusal-icon">🛑</span>
+            <h4>Safe Statutory Refusal / Compliance Halt</h4>
+          </div>
+          <p id="refusal-text"></p>
+        </div>
+
+        <!-- Escalation Briefing Accordion (Dynamic) -->
+        <div class="escalation-dossier-box hidden" id="escalation-dossier-box">
+          <div class="dossier-header">
+            <div class="dossier-title">
+              <span class="dossier-icon">⚖️</span>
+              <h4>Layer 8 Human-in-the-Loop Escalation Package</h4>
+            </div>
+            <span class="specialist-tag" id="dossier-specialist">Specialist: Patent Attorney</span>
+          </div>
+          <div class="dossier-content">
+            <p class="dossier-brief" id="dossier-brief-text"></p>
+            <div class="dossier-questions">
+              <h5>Recommended Questions for Human Counsel:</h5>
+              <ul id="dossier-questions-list"></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Layer 9 Multilingual Output Display -->
+        <div class="response-card layer-card-9">
+          <div class="response-header">
+            <div class="response-meta">
+              <span class="layer-tag">Layer 9: Multilingual Synthesized Response</span>
+              <h2 id="resp-title">Analysis Title</h2>
+            </div>
+            <div class="lang-indicator">
+              <span class="lang-tag" id="active-lang-tag">EN</span>
+            </div>
+          </div>
+
+          <div class="exec-summary-box" id="resp-exec-summary">
+            Executive summary loading...
+          </div>
+
+          <div class="legal-analysis-content markdown-body" id="resp-legal-analysis">
+            <!-- Rendered Legal Analysis -->
+          </div>
+
+          <div class="action-steps-section">
+            <h4 class="section-title">📋 Key Actionable Steps & Regulatory Checkpoints</h4>
+            <div class="steps-list" id="resp-action-steps">
+              <!-- Action Steps -->
+            </div>
+          </div>
+
+          <!-- Verified Statutory Citations -->
+          <div class="citations-section">
+            <h4 class="section-title">🏛️ Verified Statutory Citations & Evidence Trail</h4>
+            <div class="citations-grid" id="resp-citations-grid">
+              <!-- Citations Cards -->
+            </div>
+          </div>
+
+          <!-- Bilingual Domain Glossary -->
+          <div class="glossary-section">
+            <h4 class="section-title">📖 Dual Domain Glossary (Ayurveda & IP Law)</h4>
+            <div class="glossary-grid" id="resp-glossary-grid">
+              <!-- Glossary terms -->
+            </div>
+          </div>
+
+          <!-- Localized Statutory Disclaimer -->
+          <div class="disclaimer-box" id="resp-disclaimer">
+            <!-- Localized Disclaimer -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>PS #29 IP-SAKTI Sahayak • Built with House of Cards Multi-Agent Framework (Prompt Matcher ➔ Joker ➔ Verification ➔ Confidence ➔ Multilingual)</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

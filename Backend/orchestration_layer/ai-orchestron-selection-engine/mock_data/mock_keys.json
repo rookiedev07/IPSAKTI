@@ -1,0 +1,5 @@
+{
+  "Google": "mock-gemini-key-abc123",
+  "Anthropic": "mock-anthropic-key-xyz789",
+  "OpenAI": ""
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "prompt_id": "demo-002",
+    "original_prompt": "Write a short emotional story about an astronaut returning home.",
+    "matched_prompt": "You are an award-winning short story writer. Write an emotionally resonant short story about an astronaut returning home after a long mission.",
+    "category": "creative_writing",
+    "tags": ["fiction", "narrative"],
+    "user_preferences": {"mode": "auto", "priority": null, "manual_model_id": null},
+    "extra": {}
+  },
+  {
+    "prompt_id": "demo-003",
+    "original_prompt": "Summarize the latest research on quantum error correction.",
+    "matched_prompt": "You are a research analyst. Provide a detailed, well-sourced summary of recent advances in quantum error correction.",
+    "category": "research",
+    "tags": ["quantum-computing", "science"],
+    "user_preferences": {"mode": "auto", "priority": "quality", "manual_model_id": null},
+    "extra": {}
+  },
+  {
+    "prompt_id": "demo-004",
+    "original_prompt": "What's 15% of 240?",
+    "matched_prompt": "Answer the following simple math question directly and concisely: What's 15% of 240?",
+    "category": "cheap_fast",
+    "tags": ["math", "simple"],
+    "user_preferences": {"mode": "auto", "priority": "cost", "manual_model_id": null},
+    "extra": {}
+  },
+  {
+    "prompt_id": "demo-005",
+    "original_prompt": "I want to pick the AI myself for this one.",
+    "matched_prompt": "Give a friendly two-sentence explanation of how photosynthesis works.",
+    "category": "general",
+    "tags": ["education"],
+    "user_preferences": {"mode": "manual", "priority": null, "manual_model_id": "openai/gpt-oss-120b"},
+    "extra": {}
+  }
+]

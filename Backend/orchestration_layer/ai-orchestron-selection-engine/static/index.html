@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Orchestron — Selection Engine (live)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0f111a;
+  --surface:#181b26;
+  --surface-2:#20232f;
+  --surface-3:#282c3b;
+  --border:#2b2f3f;
+  --border-strong:#3a3f52;
+  --text:#edeef3;
+  --text-dim:#9195a8;
+  --text-faint:#5e6275;
+  --gold:#e8b04b;
+  --gold-dim:#3a2f1c;
+  --teal:#45cbb0;
+  --teal-dim:#123430;
+  --blue:#6f9bff;
+  --blue-dim:#1a2440;
+  --purple:#b18cf2;
+  --purple-dim:#2a2140;
+  --danger:#ef5a5a;
+  --danger-dim:#3a1e1e;
+  --radius-sm:8px;
+  --radius:14px;
+  --font-display:'Space Grotesk', sans-serif;
+  --font-body:'Inter', sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+}
+
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+
+.app{max-width:960px;margin:0 auto;padding:2.5rem 1.5rem 4rem;}
+
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--text-faint);
+  margin:0 0 6px;
+}
+
+.header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1.25rem;gap:1rem;flex-wrap:wrap;}
+.brand h1{font-family:var(--font-display);font-weight:700;font-size:2rem;margin:0 0 6px;letter-spacing:-0.01em;}
+.brand p{margin:0;color:var(--text-dim);font-size:14px;max-width:480px;line-height:1.5;}
+
+.settings-btn{
+  font-family:var(--font-mono);
+  font-size:12px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  color:var(--text-dim);
+  padding:9px 14px;
+  border-radius:var(--radius-sm);
+  cursor:pointer;
+  transition:border-color 0.15s, color 0.15s;
+  white-space:nowrap;
+}
+.settings-btn:hover{border-color:var(--border-strong);color:var(--text);}
+.settings-btn.active{color:var(--gold);border-color:var(--gold);}
+
+.status-banner{
+  font-family:var(--font-mono);font-size:12px;padding:10px 14px;border-radius:var(--radius-sm);
+  margin-bottom:1.5rem;border:1px solid var(--border);
+}
+.status-banner.ok{color:var(--teal);border-color:var(--teal);background:var(--teal-dim);}
+.status-banner.error{color:var(--danger);border-color:var(--danger);background:var(--danger-dim);}
+
+.panel{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.5rem;
+  margin-bottom:1.25rem;
+}
+
+.panel-title{
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-faint);
+  margin:0 0 1rem;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+#keysPanel{display:none;}
+.key-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+.key-field label{
+  display:block;font-size:12px;color:var(--text-dim);margin-bottom:5px;
+  font-family:var(--font-mono);
+}
+.key-field label .req{color:var(--gold);}
+.key-field input{
+  width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+  padding:8px 10px;border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:13px;
+}
+.key-field input:focus{outline:none;border-color:var(--border-strong);}
+.key-note{font-size:12px;color:var(--text-faint);margin-top:12px;line-height:1.5;}
+
+textarea{
+  width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+  padding:14px;border-radius:var(--radius-sm);font-family:var(--font-body);font-size:14.5px;
+  resize:vertical;min-height:84px;line-height:1.5;
+}
+textarea:focus{outline:none;border-color:var(--border-strong);}
+
+.prompt-meta{display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:10px;}
+.category-chip{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:0.04em;
+  background:var(--surface-3);border:1px solid var(--border-strong);color:var(--text-dim);
+  padding:5px 10px;border-radius:20px;
+}
+.category-chip b{color:var(--text);font-weight:600;}
+
+.mode-toggle{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:3px;}
+.mode-toggle button{
+  border:none;background:none;color:var(--text-dim);font-family:var(--font-mono);font-size:12px;
+  padding:7px 14px;border-radius:16px;cursor:pointer;transition:background 0.15s,color 0.15s;
+}
+.mode-toggle button.active{background:var(--gold);color:#2b1e05;font-weight:600;}
+
+.run-row{display:flex;justify-content:space-between;align-items:center;margin-top:1.25rem;gap:1rem;flex-wrap:wrap;}
+.run-btn{
+  font-family:var(--font-display);font-weight:600;font-size:14px;
+  background:var(--gold);color:#2b1e05;border:none;padding:12px 26px;border-radius:var(--radius-sm);
+  cursor:pointer;transition:transform 0.1s;
+}
+.run-btn:hover{transform:translateY(-1px);}
+.run-btn:active{transform:translateY(0);}
+.run-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.inline-error{color:var(--danger);font-size:13px;font-family:var(--font-mono);}
+
+.section-label{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--text-faint);margin:2rem 0 0.9rem;
+}
+
+.spotlight{
+  background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:var(--radius);padding:1.75rem;
+}
+.spotlight.empty{color:var(--text-faint);font-family:var(--font-mono);font-size:13px;text-align:center;padding:2.5rem 1rem;}
+
+.spotlight-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;}
+.spotlight-name{font-family:var(--font-display);font-weight:700;font-size:1.6rem;margin:0 0 4px;}
+.spotlight-provider{color:var(--text-dim);font-size:13px;font-family:var(--font-mono);}
+
+.badge{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:0.04em;padding:5px 11px;border-radius:20px;
+  white-space:nowrap;height:fit-content;
+}
+.badge.ok{background:var(--teal-dim);color:var(--teal);border:1px solid var(--teal);}
+.badge.fallback{background:var(--gold-dim);color:var(--gold);border:1px solid var(--gold);}
+.badge.error{background:var(--danger-dim);color:var(--danger);border:1px solid var(--danger);}
+
+.reasoning{color:var(--text-dim);font-size:14px;line-height:1.6;margin:1rem 0 1.4rem;}
+
+.mixer{display:flex;flex-direction:column;gap:8px;}
+.mixer-row{display:flex;align-items:center;gap:10px;}
+.mixer-label{width:64px;font-family:var(--font-mono);font-size:11px;color:var(--text-faint);flex-shrink:0;}
+.mixer-track{flex:1;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden;}
+.mixer-fill{height:100%;border-radius:4px;}
+.mixer-val{width:34px;text-align:right;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);flex-shrink:0;}
+
+.attr-row{display:flex;gap:18px;margin-top:1.1rem;flex-wrap:wrap;}
+.attr{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);}
+.attr span{color:var(--text);}
+
+.output-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+@media (max-width:640px){.output-grid{grid-template-columns:1fr;}}
+.output-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;}
+.output-card h3{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--text-faint);margin:0 0 10px;
+}
+.output-card p{margin:0;font-size:14px;line-height:1.6;color:var(--text);}
+
+.alt-list{display:flex;flex-direction:column;gap:10px;margin-top:0.5rem;}
+.alt-card{
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;
+}
+.alt-card .name{font-size:13.5px;font-weight:500;}
+.alt-card .provider{font-size:11px;color:var(--text-faint);font-family:var(--font-mono);}
+.alt-card .score{font-family:var(--font-mono);font-size:12px;color:var(--gold);}
+
+.filter-row{display:flex;gap:10px;margin-bottom:1rem;flex-wrap:wrap;align-items:center;}
+.filter-row input[type=text]{
+  flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+  padding:9px 12px;border-radius:var(--radius-sm);font-family:var(--font-body);font-size:13.5px;
+}
+.filter-row input[type=text]:focus{outline:none;border-color:var(--border-strong);}
+.chip-btn{
+  font-family:var(--font-mono);font-size:11px;background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text-dim);padding:7px 12px;border-radius:20px;cursor:pointer;white-space:nowrap;
+}
+.chip-btn.active{background:var(--purple-dim);border-color:var(--purple);color:var(--purple);}
+
+.model-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;max-height:420px;overflow-y:auto;padding-right:4px;}
+.model-card{
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:12px 14px;cursor:pointer;transition:border-color 0.15s,background 0.15s;
+}
+.model-card:hover{border-color:var(--border-strong);}
+.model-card.selected{border-color:var(--gold);background:var(--gold-dim);}
+.model-card .mname{font-size:13.5px;font-weight:500;margin-bottom:2px;}
+.model-card .mprovider{font-size:11px;color:var(--text-faint);font-family:var(--font-mono);margin-bottom:8px;}
+.model-card .mtiers{display:flex;gap:6px;flex-wrap:wrap;}
+.tier-pill{font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:10px;background:var(--surface-3);color:var(--text-dim);}
+
+.hint{font-size:12px;color:var(--text-faint);margin-top:10px;font-family:var(--font-mono);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="brand">
+      <p class="eyebrow">Live — connected to your real Python engine</p>
+      <h1>AI Orchestron</h1>
+      <p>Every Run below calls your actual Flask API, which calls your actual engine/ and api_layer/ code. Nothing here is simulated in JavaScript anymore.</p>
+    </div>
+    <button class="settings-btn" id="keysToggle" onclick="toggleKeysPanel()">API keys</button>
+  </div>
+
+  <div id="statusBanner" class="status-banner">Checking connection to backend...</div>
+
+  <div class="panel" id="keysPanel">
+    <p class="panel-title">API key access — Task 3</p>
+    <div class="key-grid">
+      <div class="key-field">
+        <label>Google (Gemini) <span class="req">— required, fallback model</span></label>
+        <input type="text" id="key-Google" placeholder="Paste Gemini API key">
+      </div>
+      <div class="key-field">
+        <label>Anthropic</label>
+        <input type="text" id="key-Anthropic" placeholder="Paste Anthropic API key">
+      </div>
+      <div class="key-field">
+        <label>OpenAI</label>
+        <input type="text" id="key-OpenAI" placeholder="Paste OpenAI API key">
+      </div>
+      <div class="key-field">
+        <label>DeepSeek</label>
+        <input type="text" id="key-DeepSeek" placeholder="Paste DeepSeek API key">
+      </div>
+      <div class="key-field">
+        <label>xAI</label>
+        <input type="text" id="key-xAI" placeholder="Paste xAI API key">
+      </div>
+      <div class="key-field">
+        <label>Meta</label>
+        <input type="text" id="key-Meta" placeholder="Paste Meta API key">
+      </div>
+    </div>
+    <p class="key-note">These keys are sent to your local Flask server on every Run and held in memory only (see api_layer/key_manager.py) -- nothing is saved to disk. Any provider left blank has no key on file; if the real engine picks a model from that provider, it falls back to Gemini automatically.</p>
+  </div>
+
+  <div class="panel">
+    <p class="panel-title">Prompt input</p>
+    <textarea id="promptInput" placeholder="Type a prompt, e.g. &quot;Write a Python function to reverse a linked list&quot;" oninput="onPromptChanged()"></textarea>
+    <div class="prompt-meta">
+      <div class="category-chip">Detected category (simulating Teammate 1): <b id="detectedCategory">general</b></div>
+      <div class="mode-toggle">
+        <button id="modeAuto" class="active" onclick="setMode('auto')">Auto-decide</button>
+        <button id="modeManual" onclick="setMode('manual')">Choose manually</button>
+      </div>
+    </div>
+    <div class="run-row">
+      <button class="run-btn" id="runBtn" onclick="runEngine()">Run ▶</button>
+      <span class="inline-error" id="runError"></span>
+    </div>
+  </div>
+
+  <div id="manualSection" style="display:none;">
+    <p class="section-label">Choose your own model — Task 2, manual mode</p>
+    <div class="panel">
+      <div class="filter-row">
+        <input type="text" id="modelSearch" placeholder="Search 50 models by name, provider, or use case" oninput="renderModelGrid()">
+        <button class="chip-btn active" data-cat="" onclick="setCategoryFilter('')">All</button>
+        <button class="chip-btn" data-cat="coding" onclick="setCategoryFilter('coding')">Coding</button>
+        <button class="chip-btn" data-cat="reasoning" onclick="setCategoryFilter('reasoning')">Reasoning</button>
+        <button class="chip-btn" data-cat="creative" onclick="setCategoryFilter('creative')">Creative</button>
+        <button class="chip-btn" data-cat="cheap" onclick="setCategoryFilter('cheap')">Cheap</button>
+        <button class="chip-btn" data-cat="fast" onclick="setCategoryFilter('fast')">Fast</button>
+      </div>
+      <div class="model-grid" id="modelGrid"></div>
+      <p class="hint" id="selectedHint">No model selected yet — click a card above.</p>
+    </div>
+  </div>
+
+  <p class="section-label">Now orchestrating — Task 5, main screen card</p>
+  <div class="spotlight empty" id="spotlight">Run a prompt above to see which AI takes the stage.</div>
+
+  <div id="outputWrap" style="display:none;">
+    <p class="section-label">Structured output — Task 4</p>
+    <div class="output-grid">
+      <div class="output-card">
+        <h3>Problem</h3>
+        <p id="outProblem"></p>
+      </div>
+      <div class="output-card">
+        <h3>Solution</h3>
+        <p id="outSolution"></p>
+      </div>
+    </div>
+    <div class="output-card" style="margin-top:1rem;">
+      <h3>AIs considered, in detail</h3>
+      <div class="alt-list" id="altList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let MODELS = [];
+let mode = "auto";
+let selectedManualId = null;
+let categoryFilter = "";
+let backendOk = false;
+
+async function checkBackend(){
+  const banner = document.getElementById("statusBanner");
+  try {
+    const res = await fetch("/api/models");
+    if (!res.ok) throw new Error("Bad response");
+    MODELS = await res.json();
+    backendOk = true;
+    banner.className = "status-banner ok";
+    banner.textContent = "Connected to backend — loaded " + MODELS.length + " models from data/models_list.json.";
+    renderModelGrid();
+  } catch (err) {
+    backendOk = false;
+    banner.className = "status-banner error";
+    banner.textContent = "Can't reach the backend. Run 'python server.py' in this project folder, then reload this page.";
+  }
+}
+
+function detectCategory(text){
+  const t = text.toLowerCase();
+  const coding = ["code","function","python","javascript","bug","algorithm","program","script","debug","linked list","class "];
+  const creative = ["story","poem","write a","fiction","narrative","song","novel","astronaut"];
+  const research = ["research","summarize","summary","study","paper","analysis","explain the latest","quantum"];
+  const cheap = ["what is","calculate","quick","simple math","%","percent","what's"];
+  if (coding.some(k=>t.includes(k))) return "coding";
+  if (creative.some(k=>t.includes(k))) return "creative_writing";
+  if (research.some(k=>t.includes(k))) return "research";
+  if (cheap.some(k=>t.includes(k))) return "cheap_fast";
+  return "general";
+}
+
+function getKeys(){
+  const providers = ["Google","Anthropic","OpenAI","DeepSeek","xAI","Meta"];
+  const keys = {};
+  providers.forEach(p=>{
+    const val = document.getElementById("key-"+p).value.trim();
+    if (val) keys[p] = val;
+  });
+  return keys;
+}
+
+function toggleKeysPanel(){
+  const panel = document.getElementById("keysPanel");
+  const btn = document.getElementById("keysToggle");
+  const showing = panel.style.display === "block";
+  panel.style.display = showing ? "none" : "block";
+  btn.classList.toggle("active", !showing);
+}
+
+function onPromptChanged(){
+  const text = document.getElementById("promptInput").value;
+  document.getElementById("detectedCategory").textContent = detectCategory(text);
+}
+
+function setMode(m){
+  mode = m;
+  document.getElementById("modeAuto").classList.toggle("active", m==="auto");
+  document.getElementById("modeManual").classList.toggle("active", m==="manual");
+  document.getElementById("manualSection").style.display = m==="manual" ? "block" : "none";
+}
+
+function setCategoryFilter(cat){
+  categoryFilter = cat;
+  document.querySelectorAll(".chip-btn").forEach(b=>b.classList.toggle("active", b.dataset.cat===cat));
+  renderModelGrid();
+}
+
+function tierPillHTML(model){
+  return `<span class="tier-pill">${model.quality_tier}</span><span class="tier-pill">${model.cost_tier} cost</span><span class="tier-pill">${model.speed_tier}</span>`;
+}
+
+function renderModelGrid(){
+  const query = (document.getElementById("modelSearch").value || "").toLowerCase();
+  const grid = document.getElementById("modelGrid");
+  let results = MODELS;
+  if (categoryFilter) results = results.filter(m=>m.categories.includes(categoryFilter));
+  if (query) results = results.filter(m =>
+    m.name.toLowerCase().includes(query) ||
+    m.provider.toLowerCase().includes(query) ||
+    m.best_for.toLowerCase().includes(query)
+  );
+  grid.innerHTML = results.map(m => `
+    <div class="model-card ${m.id===selectedManualId?'selected':''}" onclick="selectManualModel('${m.id}')">
+      <div class="mname">${m.name}</div>
+      <div class="mprovider">${m.provider}</div>
+      <div class="mtiers">${tierPillHTML(m)}</div>
+    </div>
+  `).join("");
+}
+
+function selectManualModel(id){
+  selectedManualId = id;
+  const m = MODELS.find(x=>x.id===id);
+  document.getElementById("selectedHint").textContent = `Selected: ${m.name} (${m.provider}) — press Run to use it.`;
+  renderModelGrid();
+}
+
+function colorFor(attr){
+  return {quality:"var(--gold)", cost:"var(--teal)", speed:"var(--blue)", context:"var(--purple)"}[attr];
+}
+
+function mixerHTML(breakdown){
+  const rows = ["quality","cost","speed","context"];
+  return `<div class="mixer">${rows.map(r=>{
+    const val = breakdown[r] || 0;
+    const pct = Math.round(val*100);
+    return `<div class="mixer-row">
+      <div class="mixer-label">${r}</div>
+      <div class="mixer-track"><div class="mixer-fill" style="width:${pct}%; background:${colorFor(r)};"></div></div>
+      <div class="mixer-val">${pct}%</div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function badgeHTML(status){
+  if (status==="ok") return `<span class="badge ok">Key on file</span>`;
+  if (status==="fallback_used") return `<span class="badge fallback">Fell back to Gemini</span>`;
+  return `<span class="badge error">No key available</span>`;
+}
+
+async function runEngine(){
+  const promptText = document.getElementById("promptInput").value.trim();
+  const errEl = document.getElementById("runError");
+  const runBtn = document.getElementById("runBtn");
+  errEl.textContent = "";
+
+  if (!backendOk){
+    errEl.textContent = "Backend not connected. Start it with 'python server.py'.";
+    return;
+  }
+  if (!promptText){
+    errEl.textContent = "Type a prompt first.";
+    return;
+  }
+  if (mode==="manual" && !selectedManualId){
+    errEl.textContent = "Pick a model from the list below first.";
+    return;
+  }
+
+  const category = detectCategory(promptText);
+  const payload = {
+    prompt_id: "web-" + Date.now(),
+    original_prompt: promptText,
+    matched_prompt: promptText,
+    category: category,
+    tags: [],
+    user_preferences: {
+      mode: mode,
+      manual_model_id: mode==="manual" ? selectedManualId : null
+    },
+    keys: getKeys()
+  };
+
+  runBtn.disabled = true;
+  runBtn.textContent = "Running...";
+
+  try {
+    const res = await fetch("/api/select", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (!res.ok){
+      errEl.textContent = data.error || "Request failed.";
+      return;
+    }
+
+    renderSpotlight(data);
+    renderOutput(data);
+  } catch (err) {
+    errEl.textContent = "Could not reach the backend. Is 'python server.py' still running?";
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = "Run ▶";
+  }
+}
+
+function renderSpotlight(data){
+  const el = document.getElementById("spotlight");
+  el.classList.remove("empty");
+  const model = data.selected_model;
+  el.innerHTML = `
+    <div class="spotlight-top">
+      <div>
+        <p class="spotlight-name">${model.name}</p>
+        <p class="spotlight-provider">${model.provider}</p>
+      </div>
+      ${badgeHTML(data.api_key_status)}
+    </div>
+    <p class="reasoning">${data.reasoning}</p>
+    ${mixerHTML(data.score_breakdown)}
+    <div class="attr-row">
+      <div class="attr">Quality <span>${model.quality_tier}</span></div>
+      <div class="attr">Cost <span>${model.cost_tier}</span></div>
+      <div class="attr">Speed <span>${model.speed_tier}</span></div>
+      <div class="attr">Score <span>${data.score.toFixed(3)}</span></div>
+    </div>
+  `;
+}
+
+function renderOutput(data){
+  document.getElementById("outputWrap").style.display = "block";
+  document.getElementById("outProblem").textContent = data.problem;
+  document.getElementById("outSolution").textContent = data.solution;
+
+  const rows = [];
+  rows.push({m: data.selected_model, score: data.score, tag: data.fallback_used ? "used (fallback)" : "used"});
+  (data.alternatives || []).forEach(a => rows.push({m: a.model, score: a.score, tag:"alternative"}));
+
+  document.getElementById("altList").innerHTML = rows.map(r => `
+    <div class="alt-card">
+      <div>
+        <div class="name">${r.m.name} <span style="color:var(--text-faint); font-family:var(--font-mono); font-size:11px;">${r.tag}</span></div>
+        <div class="provider">${r.m.provider}</div>
+      </div>
+      <div class="score">${r.score.toFixed(3)}</div>
+    </div>
+  `).join("");
+}
+
+document.getElementById("key-Google").value = "mock-gemini-key-abc123";
+onPromptChanged();
+checkBackend();
+</script>
+</body>
+</html>

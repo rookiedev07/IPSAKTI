@@ -1,0 +1,79 @@
+[
+  {
+    "id": "openai/gpt-oss-120b",
+    "name": "GPT-OSS 120B",
+    "provider": "Groq",
+    "categories": ["general", "reasoning", "architecture", "system_design"],
+    "cost_tier": "very_low",
+    "speed_tier": "fast",
+    "quality_tier": "frontier",
+    "context_window": 131072,
+    "best_for": "Top-tier high-capacity system architecture, strategic reasoning, and large-scale synthesis"
+  },
+  {
+    "id": "qwen/qwen3.6-27b",
+    "name": "Qwen 3.6 (27B)",
+    "provider": "Groq",
+    "categories": ["coding", "reasoning", "algorithms", "execution"],
+    "cost_tier": "very_low",
+    "speed_tier": "fast",
+    "quality_tier": "frontier",
+    "context_window": 131072,
+    "best_for": "Deep algorithmic thinking, complex code generation, and logical problem decomposition"
+  },
+  {
+    "id": "openai/gpt-oss-20b",
+    "name": "GPT-OSS 20B",
+    "provider": "Groq",
+    "categories": ["research", "general", "search", "retrieval", "fast"],
+    "cost_tier": "very_low",
+    "speed_tier": "very_fast",
+    "quality_tier": "high",
+    "context_window": 131072,
+    "best_for": "High-speed context gathering, benchmarking, and factual data retrieval"
+  },
+  {
+    "id": "groq/compound",
+    "name": "Groq Compound",
+    "provider": "Groq",
+    "categories": ["general", "agentic", "reasoning", "multistep"],
+    "cost_tier": "very_low",
+    "speed_tier": "fast",
+    "quality_tier": "high",
+    "context_window": 131072,
+    "best_for": "Multi-agent compound reasoning pipelines and orchestrated workflows"
+  },
+  {
+    "id": "groq/compound-mini",
+    "name": "Groq Compound Mini",
+    "provider": "Groq",
+    "categories": ["cheap", "fast", "qa", "verification", "cheap_fast"],
+    "cost_tier": "very_low",
+    "speed_tier": "very_fast",
+    "quality_tier": "medium",
+    "context_window": 131072,
+    "best_for": "Sub-second quality assurance, syntax verification, and rapid assertions"
+  },
+  {
+    "id": "openai/gpt-oss-safeguard-20b",
+    "name": "GPT-OSS Safeguard 20B",
+    "provider": "Groq",
+    "categories": ["security", "evaluation", "qa", "verification"],
+    "cost_tier": "very_low",
+    "speed_tier": "very_fast",
+    "quality_tier": "high",
+    "context_window": 131072,
+    "best_for": "Security posture evaluation, boundary assertions, and policy checks"
+  },
+  {
+    "id": "allam-2-7b",
+    "name": "ALLaM 2 (7B)",
+    "provider": "Groq",
+    "categories": ["multilingual", "general"],
+    "cost_tier": "very_low",
+    "speed_tier": "very_fast",
+    "quality_tier": "medium",
+    "context_window": 4096,
+    "best_for": "Multilingual translation, cross-cultural adaptation, and localization"
+  }
+]

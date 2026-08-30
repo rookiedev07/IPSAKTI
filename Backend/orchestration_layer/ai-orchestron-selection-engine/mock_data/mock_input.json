@@ -1,0 +1,13 @@
+{
+  "prompt_id": "demo-001",
+  "original_prompt": "Write a Python function to reverse a linked list, and explain the time complexity.",
+  "matched_prompt": "You are an expert software engineer. Write clean, well-commented Python code to reverse a singly linked list, and explain the time and space complexity of your solution.",
+  "category": "coding",
+  "tags": ["python", "data-structures", "algorithms"],
+  "user_preferences": {
+    "mode": "auto",
+    "priority": null,
+    "manual_model_id": null
+  },
+  "extra": {}
+}

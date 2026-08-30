@@ -1,0 +1,39 @@
+{
+  "india": {
+    "acts": [
+      "patents act", "patent act 1970", "section 3(p)", "traditional knowledge digital library",
+      "tkdl", "geographical indications act", "gi act", "gi tag", "trade marks act",
+      "designs act", "copyright act", "protection of plant varieties", "ppv&fr",
+      "ppvfra", "biological diversity act", "biodiversity act", "national biodiversity authority",
+      "nba", "state biodiversity board", "sbb", "biodiversity management committee", "bmc",
+      "drugs and cosmetics act", "drugs and cosmetics rules", "ayurvedic siddha unani",
+      "asu drugs", "drugs and magic remedies act", "fssai", "ayurveda aahar",
+      "ayush", "indian patent office", "ipindia", "inpass", "controller general of patents"
+    ],
+    "entities": [
+      "ministry of ayush", "all india institute of ayurveda", "aiia", "national medicinal plants board",
+      "central council for research in ayurvedic sciences", "ccras"
+    ],
+    "generic": [
+      "india code", "indian law", "vaid", "hakim", "certificate of origin",
+      "ayurveda", "ayurvedic", "siddha", "unani"
+    ]
+  },
+  "international": {
+    "treaties": [
+      "trips", "trips agreement", "convention on biological diversity", "cbd",
+      "nagoya protocol", "wipo gratk", "wipo treaty on genetic resources",
+      "genetic resources and associated traditional knowledge", "patent cooperation treaty",
+      "pct", "madrid protocol", "madrid system", "hague system", "hague agreement",
+      "budapest treaty"
+    ],
+    "bodies": [
+      "wipo", "world intellectual property organization", "uspto", "epo",
+      "european patent office", "who traditional medicine"
+    ],
+    "generic": [
+      "export", "foreign market", "foreign filing", "overseas patent", "international patent",
+      "abroad", "global market", "multi-country", "eu market", "us market"
+    ]
+  }
+}

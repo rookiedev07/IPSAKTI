@@ -1,0 +1,15 @@
+export const cardData = [
+  { rank: "A", suit: "♠", color: "black" },
+  { rank: "2", suit: "♠", color: "black" },
+  { rank: "3", suit: "♠", color: "black" },
+  { rank: "4", suit: "♠", color: "black" },
+  { rank: "5", suit: "♠", color: "black" },
+  { rank: "6", suit: "♠", color: "black" },
+  { rank: "7", suit: "♠", color: "black" },
+  { rank: "8", suit: "♠", color: "black" },
+  { rank: "9", suit: "♠", color: "black" },
+  { rank: "10", suit: "♠", color: "black" },
+  { rank: "J", suit: "♠", color: "black" },
+  { rank: "Q", suit: "♠", color: "black" },
+  { rank: "K", suit: "♠", color: "black" },
+];

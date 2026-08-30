@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IP-SAKTI — Jurisdiction & Citation Layer (Points 5 &amp; 6)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --cream:#f7f1e3; --cream-2:#efe6d0; --ink:#1a1a1a; --red:#b3272d;
+  --muted:#8a8270; --green:#3f7d5c; --border:#1a1a1a;
+  --font-mono:'Space Mono', monospace; --font-body:'Inter', sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--font-body);}
+.app{max-width:920px;margin:0 auto;padding:2rem 1.25rem 4rem;}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;color:var(--muted);margin:0 0 6px;}
+h1{font-family:var(--font-mono);font-size:1.6rem;margin:0 0 6px;}
+.sub{color:var(--muted);font-size:13px;margin:0 0 1.5rem;}
+
+.panel{background:var(--cream-2);border:2px solid var(--border);border-radius:10px;padding:1.25rem;margin-bottom:1.25rem;}
+textarea{width:100%;min-height:70px;background:var(--cream);border:1.5px solid var(--border);border-radius:6px;padding:10px;font-family:var(--font-body);font-size:14px;resize:vertical;}
+.run-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
+button.run{font-family:var(--font-mono);font-weight:700;background:var(--ink);color:var(--cream);border:none;padding:10px 20px;border-radius:6px;cursor:pointer;}
+.status{font-family:var(--font-mono);font-size:11px;padding:8px 12px;border-radius:6px;margin-bottom:1rem;border:1.5px solid var(--border);}
+.status.ok{border-color:var(--green);color:var(--green);}
+.status.error{border-color:var(--red);color:var(--red);}
+
+.toggle-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.toggle-btn{font-family:var(--font-mono);font-size:11px;background:var(--cream);border:1.5px solid var(--border);padding:7px 14px;border-radius:20px;cursor:pointer;}
+.toggle-btn.active{background:var(--ink);color:var(--cream);}
+.reasoning{font-size:12px;color:var(--muted);margin-top:8px;font-style:italic;}
+
+.section-label{font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;color:var(--muted);margin:1.5rem 0 0.75rem;}
+.jurisdiction-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:640px){.jurisdiction-grid{grid-template-columns:1fr;}}
+.jur-col{border:2px solid var(--border);border-radius:10px;padding:14px;background:var(--cream);}
+.jur-col h3{font-family:var(--font-mono);font-size:12px;margin:0 0 10px;padding-bottom:8px;border-bottom:1.5px solid var(--cream-2);}
+.jur-col.india h3{color:var(--red);}
+.jur-col.intl h3{color:#2a5a8a;}
+
+.source-card{background:var(--cream-2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.source-card .title{font-size:12.5px;font-weight:600;}
+.source-card .meta{font-size:10.5px;color:var(--muted);margin-top:3px;}
+.source-card a{color:var(--red);font-size:10.5px;}
+.empty-note{font-size:12px;color:var(--muted);font-style:italic;}
+
+.confidence-badge{display:inline-block;font-family:var(--font-mono);font-size:11px;padding:5px 12px;border-radius:20px;margin-top:1rem;}
+.confidence-badge.High{background:#e3f0e9;color:var(--green);border:1.5px solid var(--green);}
+.confidence-badge.Medium{background:#fbf1d9;color:#a3791a;border:1.5px solid #a3791a;}
+.confidence-badge.Low{background:#f7e3e3;color:var(--red);border:1.5px solid var(--red);}
+
+.disclaimer-box{background:var(--ink);color:var(--cream);border-radius:8px;padding:14px 16px;margin-top:1.5rem;font-size:12px;line-height:1.6;white-space:pre-line;}
+</style>
+</head>
+<body>
+<div class="app">
+  <p class="eyebrow">Points 5 &amp; 6 — Demo UI</p>
+  <h1>Jurisdiction &amp; Citation Layer</h1>
+  <p class="sub">Standalone demo for testing the two layers in isolation before wiring into the House of Cards main app. Requires <code>python run_server.py</code> running on port 5050.</p>
+
+  <div id="statusBanner" class="status">Checking connection...</div>
+
+  <div class="panel">
+    <textarea id="promptInput" placeholder="e.g. Can I patent my classical Ayurvedic formulation and also export it under a PCT filing?"></textarea>
+    <div class="toggle-row" id="toggleRow">
+      <button class="toggle-btn" data-val="India" onclick="setOverride('India')">India</button>
+      <button class="toggle-btn" data-val="International" onclick="setOverride('International')">International</button>
+      <button class="toggle-btn" data-val="Both" onclick="setOverride('Both')">Both</button>
+      <button class="toggle-btn active" data-val="" onclick="setOverride('')">Auto-detect</button>
+    </div>
+    <div class="run-row">
+      <span class="reasoning" id="reasoningLine"></span>
+      <button class="run" onclick="run()">Run ▶</button>
+    </div>
+  </div>
+
+  <div id="resultsWrap" style="display:none;">
+    <p class="section-label">Sources — kept visibly separate by jurisdiction</p>
+    <div class="jurisdiction-grid">
+      <div class="jur-col india">
+        <h3>🇮🇳 INDIA</h3>
+        <div id="indiaSources"></div>
+      </div>
+      <div class="jur-col intl">
+        <h3>🌐 INTERNATIONAL</h3>
+        <div id="intlSources"></div>
+      </div>
+    </div>
+
+    <div id="confidenceBadge"></div>
+    <div class="disclaimer-box" id="disclaimerBox"></div>
+  </div>
+</div>
+
+<script>
+const API = "http://127.0.0.1:5050";
+let jurisdictionOverride = "";
+
+async function checkBackend(){
+  const el = document.getElementById("statusBanner");
+  try{
+    const res = await fetch(API + "/api/health");
+    if(!res.ok) throw new Error();
+    el.className = "status ok";
+    el.textContent = "Connected — Points 5 & 6 API is live on port 5050.";
+  }catch(e){
+    el.className = "status error";
+    el.textContent = "Can't reach the backend. Run 'python run_server.py' in this folder, then reload.";
+  }
+}
+
+function setOverride(val){
+  jurisdictionOverride = val;
+  document.querySelectorAll(".toggle-btn").forEach(b => b.classList.toggle("active", b.dataset.val === val));
+}
+
+function sourceCardHTML(source){
+  return `
+    <div class="source-card">
+      <div class="title">${source.title}</div>
+      <div class="meta">${source.source_portal} · ${source.section_or_article} · v: ${source.version}</div>
+      <a href="${source.url}" target="_blank">${source.url}</a>
+    </div>`;
+}
+
+async function run(){
+  const prompt = document.getElementById("promptInput").value.trim();
+  if(!prompt) return;
+
+  const body = { prompt };
+  if(jurisdictionOverride) body.jurisdiction_override = jurisdictionOverride;
+
+  try{
+    const res = await fetch(API + "/api/structure-answer", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+
+    document.getElementById("reasoningLine").textContent = data.jurisdiction.reasoning;
+    document.getElementById("resultsWrap").style.display = "block";
+
+    const indiaEl = document.getElementById("indiaSources");
+    const intlEl = document.getElementById("intlSources");
+    indiaEl.innerHTML = data.sources.india.length
+      ? data.sources.india.map(sourceCardHTML).join("")
+      : '<p class="empty-note">No India-specific sources retrieved for this query.</p>';
+    intlEl.innerHTML = data.sources.international.length
+      ? data.sources.international.map(sourceCardHTML).join("")
+      : '<p class="empty-note">No international sources retrieved for this query.</p>';
+
+    const badge = document.getElementById("confidenceBadge");
+    badge.innerHTML = `<span class="confidence-badge ${data.confidence.level}">Confidence: ${data.confidence.level} — ${data.confidence.reason}</span>`;
+
+    document.getElementById("disclaimerBox").textContent = data.disclaimer;
+  }catch(e){
+    alert("Request failed: " + e.message);
+  }
+}
+
+checkBackend();
+</script>
+</body>
+</html>
