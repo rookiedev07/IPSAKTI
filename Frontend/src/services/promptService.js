@@ -5,7 +5,7 @@
  */
 
 const LOCAL_BACKEND_URL = "http://localhost:5000";
-const RENDER_PROMPT_URL = "https://house-of-cards-prompt.onrender.com";
+const RENDER_PROMPT_URL = "https://project-new-z4qf.onrender.com";
 
 // Real Groq 5-agent squad pool with rich metadata
 export const DEFAULT_AGENTS = [
