@@ -1,263 +1,164 @@
+/* =============================================
+   FONTS
+   ============================================= */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* =============================================
-   JOKER ENTRANCE — slides up from below
+   PAGE ENTRANCE
    ============================================= */
-
-@keyframes jokerSlideUp {
-  0% {
-    transform: translateY(250px);
-    opacity: 0;
-  }
-
-  40% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
+@keyframes pageEntrance {
+  0%   { opacity: 0; transform: translateY(18px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-
-.joker-entrance {
-  opacity: 0;
-  animation: jokerSlideUp 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.page-entrance {
+  animation: pageEntrance 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* =============================================
-   FAN CARDS — slide out from behind the Joker
-   Each card reads CSS custom properties set
-   inline: --fan-x, --fan-rotate, --fan-scale,
-   --fan-delay
+   PROMPT PANEL — glow pulse while active
    ============================================= */
-
-@keyframes fanOut {
-  0% {
-    transform: translateX(0) rotate(0deg) scale(1);
-    opacity: 0;
-  }
-
-  30% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateX(var(--fan-x)) rotate(var(--fan-rotate)) scale(var(--fan-scale));
-    opacity: 1;
-  }
+@keyframes promptGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  50%       { box-shadow: 0 0 20px 2px rgba(16, 185, 129, 0.25); }
 }
-
-.fan-card {
-  position: absolute;
-  opacity: 0;
-  /* Start stacked behind the Joker, centered */
-  transform: translateX(0) rotate(0deg) scale(1);
-  animation: fanOut 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--fan-delay);
+.prompt-focus-glow:focus-within {
+  animation: promptGlow 2s ease-in-out infinite;
 }
 
 /* =============================================
-   CTA BUTTON — fades in after all cards settle
-   Total animation time:
-     Joker = 1s
-     Last fan card = 1.0 + 7×0.08 + 0.8 ≈ 2.36s
-     Button appears at 2.8s
+   RESULTS PANEL — slides in from below
    ============================================= */
-
-@keyframes ctaFadeIn {
-  0% {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes resultsSlideIn {
+  0%   { opacity: 0; transform: translateY(28px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-
-.cta-fade-in {
-  opacity: 0;
-  animation: ctaFadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) 2.8s forwards;
-}
-
-/* =============================================
-   LEGACY — keep for potential reuse
-   ============================================= */
-
-@keyframes cardSlideUp {
-  0% {
-    transform: translateY(180px);
-    opacity: 0;
-  }
-
-  60% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.card-slide-up {
-  opacity: 0;
-  animation: cardSlideUp 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-/* =============================================
-   MAIN PAGE — deck hover shimmer
-   ============================================= */
-
-@keyframes deckShimmer {
-
-  0%,
-  100% {
-    box-shadow: 5px 6px 0px rgba(23, 23, 23, 0.18);
-  }
-
-  50% {
-    box-shadow: 6px 8px 0px rgba(201, 54, 54, 0.14);
-  }
-}
-
-.deck-shimmer:hover {
-  animation: deckShimmer 2s ease-in-out infinite;
-}
-
-/* =============================================
-   AGENT STATUS — fade in
-   ============================================= */
-
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) translateY(12px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) translateY(0);
-  }
-}
-
-/* =============================================
-   CARD DEALING — fly from bottom-right deck to center
-   ============================================= */
-
-@keyframes dealCardFromDeck {
-  0% {
-    opacity: 0;
-    transform: translate(var(--deal-dx, 400px), var(--deal-dy, 220px)) rotate(var(--deal-init-rot, 16deg)) scale(0.62);
-    box-shadow: 2px 2px 0px rgba(23, 23, 23, 0.12);
-  }
-
-  15% {
-    opacity: 1;
-  }
-
-  45% {
-    transform: translate(calc(var(--deal-dx, 400px) * 0.55), calc(var(--deal-dy, 220px) * 0.4 - 55px)) rotate(-4deg) scale(1.06);
-    box-shadow: 14px 18px 0px rgba(23, 23, 23, 0.22);
-  }
-
-  75% {
-    transform: translate(calc(var(--deal-dx, 400px) * 0.1), -12px) rotate(2deg) scale(1.02);
-    box-shadow: 9px 12px 0px rgba(23, 23, 23, 0.2);
-  }
-
-  90% {
-    transform: translate(0px, 3px) rotate(0deg) scale(0.99);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translate(0px, 0px) rotate(0deg) scale(1);
-    box-shadow: 5px 6px 0px rgba(23, 23, 23, 0.18);
-  }
-}
-
-.deal-card-animate {
-  opacity: 0;
-  animation: dealCardFromDeck 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--deal-delay, 0s);
+.results-entrance {
+  animation: resultsSlideIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   will-change: transform, opacity;
 }
 
-@keyframes bannerFadeSlide {
-  0% {
-    opacity: 0;
-    transform: translateY(-16px) scale(0.96);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+/* =============================================
+   AGENT PROGRESS ROWS — stagger in
+   ============================================= */
+@keyframes agentRowIn {
+  0%   { opacity: 0; transform: translateX(-12px); }
+  100% { opacity: 1; transform: translateX(0); }
 }
-
-.banner-fade-slide {
+.agent-row {
   opacity: 0;
-  animation: bannerFadeSlide 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: agentRowIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--agent-delay, 0s);
 }
 
 /* =============================================
-   3D CARD SUIT FLIP — Spade to Agent Name
+   EXAMPLE CHIP — fade & rise
    ============================================= */
-
-.card-flip-container {
-  perspective: 1000px;
+@keyframes chipIn {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-
-.card-flip-inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transition: transform 0.75s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transform-style: preserve-3d;
-}
-
-.card-flip-inner.is-flipped {
-  transform: rotateY(180deg);
-}
-
-.card-flip-front,
-.card-flip-back {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.card-flip-back {
-  transform: rotateY(180deg);
+.chip-entrance {
+  opacity: 0;
+  animation: chipIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--chip-delay, 0s);
 }
 
 /* =============================================
-   OUTPUT SCREEN — Entrance Animation
+   HEADER — fade down
    ============================================= */
+@keyframes headerIn {
+  0%   { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.header-entrance {
+  animation: headerIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
 
+/* =============================================
+   PROGRESS BAR — fill left to right
+   ============================================= */
+@keyframes progressFill {
+  0%   { width: 0%; }
+  100% { width: var(--progress-to, 100%); }
+}
+.progress-fill {
+  animation: progressFill 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--progress-delay, 0s);
+}
+
+/* =============================================
+   SPINNER — agent council loading
+   ============================================= */
+@keyframes suitSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.suit-spin {
+  animation: suitSpin 1.4s linear infinite;
+  display: inline-block;
+}
+
+/* =============================================
+   PULSE DOT — active agent indicator
+   ============================================= */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.45; transform: scale(0.85); }
+}
+.pulse-dot {
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
+
+/* =============================================
+   OUTPUT SCREEN — entrance
+   ============================================= */
 @keyframes outputScreenEntrance {
-  0% {
-    opacity: 0;
-    transform: translateY(30px) scale(0.97);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  0%   { opacity: 0; transform: translateY(24px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.output-screen-entrance {
+  animation: outputScreenEntrance 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
 }
 
-.output-screen-entrance {
-  animation: outputScreenEntrance 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  will-change: transform, opacity;
+/* =============================================
+   BACKGROUND PATTERN — dark dot matrix texture
+   ============================================= */
+.dot-paper {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 0.8px, transparent 0.8px);
+  background-size: 8px 8px;
+}
+
+/* =============================================
+   CARD SHADOWS & DEPTH — sleek dark mode
+   ============================================= */
+.shadow-card {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.shadow-card-lg {
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.shadow-card-hover:hover {
+  box-shadow: 0 14px 40px -4px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(16, 185, 129, 0.45);
+  transform: translateY(-2px);
+}
+
+/* =============================================
+   SCROLLBAR — minimal dark styling
+   ============================================= */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+
+/* =============================================
+   SELECTION
+   ============================================= */
+::selection {
+  background: rgba(16, 185, 129, 0.35);
+  color: #FFFFFF;
 }

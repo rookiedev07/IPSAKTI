@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import MarkdownRenderer from "./MarkdownRenderer";
 
+/* ─────────────────────────────────────────────────────────────
+   DEFAULT DATA (fallbacks when backend returns nothing)
+───────────────────────────────────────────────────────────── */
 const DEFAULT_AGENTS = [
-  { name: "DeepSeek R1", role: "STRATEGIST", suit: "♠", color: "text-[#171717]", desc: "Orchestration & Strategic Architecture" },
-  { name: "DeepSeek V3", role: "RESEARCHER", suit: "♥", color: "text-[#C93636]", desc: "Statutory Context & Prior-Art Search" },
-  { name: "Nemotron 120B", role: "ARCHITECT", suit: "♦", color: "text-[#C93636]", desc: "Compliance Boundaries & Schemas" },
-  { name: "Llama 3.2 (11B)", role: "EXECUTOR", suit: "♣", color: "text-[#171717]", desc: "Deliverable Table & Roadmap Synthesis" },
-  { name: "DeepSeek Verifier", role: "VERIFIER", suit: "♠", color: "text-[#171717]", desc: "3-Tier Statutory Verification & QA" },
+  { name: "DeepSeek R1",      role: "STRATEGIST", code: "01", color: "text-slate-200", desc: "Orchestration & Strategic Architecture" },
+  { name: "DeepSeek V3",      role: "RESEARCHER", code: "02", color: "text-teal-300",  desc: "Statutory Context & Prior-Art Search" },
+  { name: "Nemotron 120B",    role: "ARCHITECT",  code: "03", color: "text-emerald-400", desc: "Compliance Boundaries & Schemas" },
+  { name: "Llama 3.2 (11B)",  role: "EXECUTOR",   code: "04", color: "text-sky-400",   desc: "Deliverable Table & Roadmap Synthesis" },
+  { name: "DeepSeek Verifier",role: "VERIFIER",   code: "05", color: "text-emerald-400", desc: "3-Tier Statutory Verification & QA" },
 ];
 
 const GLOSSARY_DICTIONARY = {
@@ -28,358 +31,330 @@ const GLOSSARY_DICTIONARY = {
   ]
 };
 
-const OutputScreen = ({ prompt, matchedData, operator, onReset, onTranslate }) => {
-  const [activeTab, setActiveTab] = useState("solution");
-  const [copied, setCopied] = useState(false);
+const TABS = [
+  { id: "solution",      label: "⚡ Solution & Strategy",   shortLabel: "⚡ Solution" },
+  { id: "deliverable",   label: "📦 Deliverable",           shortLabel: "📦 Deliverable" },
+  { id: "verification",  label: "🛡 QA & Verification",    shortLabel: "🛡 Verify" },
+  { id: "logs",          label: "📋 Council Logs",          shortLabel: "📋 Logs" },
+];
+
+/* ─────────────────────────────────────────────────────────────
+   AGENT COUNCIL STRIP
+───────────────────────────────────────────────────────────── */
+const AgentStrip = ({ agents }) => (
+  <div className="flex flex-wrap gap-2 mb-4">
+    {agents.map((agent, i) => (
+      <div
+        key={i}
+        className="
+          flex items-center gap-2 px-3 py-1.5
+          bg-[#151924] border border-white/10 rounded-full
+          shadow-sm hover:border-white/20 transition-all
+          hover:-translate-y-0.5
+        "
+      >
+        <span className={`text-[8px] font-mono font-black px-1.5 py-0.5 rounded bg-white/10 ${agent.color || "text-slate-200"}`}>
+          {agent.code || `0${i + 1}`}
+        </span>
+        <div>
+          <span
+            className="text-[7px] font-black text-[#F1F3F9] tracking-wider uppercase block"
+            style={{ fontFamily: "'Press Start 2P', monospace" }}
+          >
+            {agent.role}
+          </span>
+          <span className="text-[9px] font-mono text-white/50 block leading-tight">{agent.name}</span>
+        </div>
+        <span className="ml-1 text-[6px] font-mono px-1 py-0.5 bg-emerald-950/60 text-emerald-400 border border-emerald-500/40 rounded font-bold uppercase">✓</span>
+      </div>
+    ))}
+  </div>
+);
+
+/* ─────────────────────────────────────────────────────────────
+   CONFIDENCE & META ROW
+───────────────────────────────────────────────────────────── */
+const MetaRow = ({ confidence, confidenceRating, category, subcategory, jurisdiction, hash }) => {
+  const ratingColor = confidenceRating === "HIGH"
+    ? "bg-emerald-950/60 text-emerald-300 border-emerald-500/40"
+    : confidenceRating === "MEDIUM"
+      ? "bg-amber-950/60 text-amber-300 border-amber-500/40"
+      : "bg-amber-950/60 text-amber-400 border-amber-500/40";
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mb-4">
+      <span className={`text-[8px] font-mono font-black px-2 py-0.5 border rounded uppercase ${ratingColor}`}>
+        CONFIDENCE {confidence} ({confidenceRating})
+      </span>
+      <span className="text-[8px] font-mono px-2 py-0.5 bg-[#1C2230] border border-white/10 text-white/90 rounded font-bold uppercase">
+        {category} / {subcategory}
+      </span>
+      <span className="text-[8px] font-mono px-2 py-0.5 bg-[#151924] border border-white/10 text-white/80 rounded font-bold uppercase">
+        ⚖ {jurisdiction}
+      </span>
+      {hash && (
+        <span className="text-[7px] font-mono text-white/30 ml-auto hidden sm:inline">{hash}</span>
+      )}
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────────────────────── */
+const OutputScreen = ({ prompt, matchedData, onReset, onTranslate }) => {
+  const [activeTab, setActiveTab]           = useState("solution");
+  const [copied, setCopied]                 = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState("en");
   const [selectedJurisdiction, setSelectedJurisdiction] = useState("All");
-  const [isTranslating, setIsTranslating] = useState(false);
+  const [isTranslating, setIsTranslating]   = useState(false);
 
-  // Dynamic values from backend Groq orchestrator & 9-Layer Engine
-  const agents = matchedData?.agents || DEFAULT_AGENTS;
-  const rawPrompt = matchedData?.rawPrompt || prompt || "Create a full-stack high performance orchestration architecture.";
-  const matchedPrompt = matchedData?.matchedPrompt || rawPrompt;
-  const category = matchedData?.category || "AI ORCHESTRATION";
-  const subcategory = matchedData?.subcategory || "GROQ LPU ENGINE";
-  const confidence = matchedData?.confidence || "98.8%";
-  const confidenceRating = matchedData?.confidenceRating || "HIGH";
-  const deliverableType = matchedData?.deliverableType || "code";
-  const tabTitle = matchedData?.tabTitle || (deliverableType === "code" ? "CODE IMPLEMENTATION" : "DELIVERABLE DOSSIER");
-
-  const allCitations = matchedData?.citations || [];
-  const escalationDossier = matchedData?.escalationDossier || null;
+  /* ── Derived data ── */
+  const agents               = matchedData?.agents || DEFAULT_AGENTS;
+  const rawPrompt            = matchedData?.rawPrompt || prompt || "";
+  const matchedPrompt        = matchedData?.matchedPrompt || rawPrompt;
+  const category             = matchedData?.category || "AI ORCHESTRATION";
+  const subcategory          = matchedData?.subcategory || "GROQ LPU ENGINE";
+  const confidence           = matchedData?.confidence || "98.8%";
+  const confidenceRating     = matchedData?.confidenceRating || "HIGH";
+  const deliverableType      = matchedData?.deliverableType || "code";
+  const tabTitle             = matchedData?.tabTitle || (deliverableType === "code" ? "CODE IMPLEMENTATION" : "DELIVERABLE DOSSIER");
   const detectedJurisdiction = matchedData?.jurisdiction?.suggested_toggle || "India";
+  const allCitations         = matchedData?.citations || [];
+  const escalationDossier    = matchedData?.escalationDossier || null;
   const insufficientEvidence = matchedData?.insufficientEvidence || false;
   const insufficientEvidenceMessage = matchedData?.insufficientEvidenceMessage || null;
-  const threeTierVerification = matchedData?.threeTierVerification || matchedData?.architecture?.threeTierVerification || matchedData?.verificationResult?.three_tier_verification || matchedData?.verification?.three_tier_verification || null;
+  const threeTierVerification = matchedData?.threeTierVerification
+    || matchedData?.architecture?.threeTierVerification
+    || matchedData?.verificationResult?.three_tier_verification
+    || matchedData?.verification?.three_tier_verification || null;
+  const alternatives         = matchedData?.alternatives || [];
+  const hash                 = matchedData?.hash || "";
 
-  // Filter citations by active jurisdiction toggle
+  const architecture = matchedData?.architecture || {
+    overview: `Strategic and regulatory solution formulated specifically for: "${rawPrompt}"`,
+    blueprint: "Decomposed objective into a multi-agent orchestration graph.",
+    dataFlow: [
+      { name: `1. Ingress & Strategy (${agents[0]?.name || "Strategist"})`, desc: "Decomposed objective into modular actionable tasks." },
+      { name: `2. Research & Specs (${agents[1]?.name || "Researcher"})`,   desc: "Retrieved domain parameters and dependencies." },
+      { name: `3. Architecture (${agents[2]?.name || "Architect"})`,        desc: "Constructed interface schemas and contracts." },
+      { name: `4. Execution (${agents[3]?.name || "Executor"})`,            desc: "Synthesised tailored deliverable." },
+      { name: `5. QA & Assertions (${agents[4]?.name || "Verifier"})`,      desc: "Validated edge cases and constraints." },
+    ],
+    verification: matchedData?.verificationReport || "✓ All statutory constraints validated.\n✓ Zero critical contradictions found.\n✓ Approved."
+  };
+
+  const deliverableContent = matchedData?.deliverableContent || matchedData?.code
+    || `Deliverable formulated for: "${rawPrompt}"`;
+  const logs               = matchedData?.logs || [
+    { time: "0.00s", tag: "COUNCIL",    msg: `Prompt ingested: "${rawPrompt.slice(0, 50)}..."` },
+    { time: "0.22s", tag: agents[0]?.role || "STRATEGIST", msg: `Strategy roadmap formulated for [${category}].` },
+    { time: "0.58s", tag: agents[2]?.role || "ARCHITECT",  msg: "Statutory schema and boundary contracts constructed." },
+    { time: "1.05s", tag: agents[3]?.role || "EXECUTOR",   msg: "Live deliverable synthesis finished with 0 defects." },
+    { time: "1.42s", tag: agents[4]?.role || "VERIFIER",   msg: "Assertions complete. Pipeline deployed." },
+  ];
+  const verificationReport = matchedData?.verificationReport || architecture.verification;
+
   const citations = selectedJurisdiction === "All"
     ? allCitations
     : allCitations.filter(c => c.jurisdiction?.toLowerCase() === selectedJurisdiction.toLowerCase());
 
-  const architecture = matchedData?.architecture || {
-    overview: `Strategic and regulatory solution formulated specifically for: "${rawPrompt}"`,
-    blueprint: "Decomposed objective into a multi-agent orchestration graph with distributed state isolation and parallel inference channels.",
-    dataFlow: [
-      { name: `1. Ingress & Strategy (${agents[0]?.name || "Strategist"})`, desc: "Decomposed objective into modular actionable tasks." },
-      { name: `2. Research & Specs (${agents[1]?.name || "Researcher"})`, desc: "Retrieved domain parameters and dependencies." },
-      { name: `3. Architecture (${agents[2]?.name || "Architect"})`, desc: "Constructed interface schemas and contracts." },
-      { name: `4. Execution (${agents[3]?.name || "Executor"})`, desc: "Synthesized tailored deliverable." },
-      { name: `5. QA & Assertions (${agents[4]?.name || "Verifier"})`, desc: "Validated edge cases and constraints." }
-    ],
-    verification: matchedData?.verificationReport || "✓ All statutory constraints validated.\n✓ Zero critical contradictions found.\n✓ Production execution approved."
-  };
-
-  const deliverableContent = matchedData?.deliverableContent || matchedData?.code || `Deliverable formulated specifically for: "${rawPrompt}". Generated by House of Cards Agent Team.`;
-  const logs = matchedData?.logs || [
-    { time: "0.00s", tag: "JOKER", msg: `Prompt ingested: "${rawPrompt.slice(0, 35)}..."` },
-    { time: "0.22s", tag: `${agents[0]?.role || "STRATEGIST"}`, msg: `Strategy roadmap formulated for [${category}].` },
-    { time: "0.58s", tag: `${agents[2]?.role || "ARCHITECT"}`, msg: "Statutory schema, interfaces, and boundary contracts constructed." },
-    { time: "1.05s", tag: `${agents[3]?.role || "EXECUTOR"}`, msg: "Live deliverable synthesis finished with 0 defects." },
-    { time: "1.42s", tag: `${agents[4]?.role || "VERIFIER"}`, msg: "Assertions complete. Groq LPU pipeline deployed." },
-  ];
-  const hash = matchedData?.hash || "#HOC-9942A";
-  const alternatives = matchedData?.alternatives || [];
-  const verificationReport = matchedData?.verificationReport || architecture.verification;
-
+  /* ── Handlers ── */
   const handleCopy = () => {
-    const textToCopy = activeTab === "deliverable"
-      ? deliverableContent
-      : activeTab === "logs"
-        ? logs.map(l => `[${l.time}] [${l.tag}] ${l.msg}`).join("\n")
-        : activeTab === "verification"
-          ? verificationReport
-          : `ORCHESTRATED SOLUTION FOR: "${rawPrompt}"\nCATEGORY: ${category} / ${subcategory}\nJURISDICTION: ${selectedJurisdiction}\nLANGUAGE: ${selectedLanguage.toUpperCase()}\n\nSTRATEGIC SOLUTION:\n${architecture.overview}\n\nDATA FLOW:\n${architecture.dataFlow.map(d => `${d.name}: ${d.desc}`).join("\n")}\n\nVERIFICATION:\n${verificationReport}`;
-
-    navigator.clipboard?.writeText(textToCopy);
+    const text = activeTab === "deliverable" ? deliverableContent
+      : activeTab === "logs"                 ? logs.map(l => `[${l.time}] [${l.tag}] ${l.msg}`).join("\n")
+      : activeTab === "verification"         ? verificationReport
+      : `SOLUTION FOR: "${rawPrompt}"\nCATEGORY: ${category}/${subcategory}\n\n${architecture.overview}`;
+    navigator.clipboard?.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleLanguageChange = async (langId) => {
-    if (langId === selectedLanguage && !isTranslating) return;
+    if (langId === selectedLanguage) return;
     setSelectedLanguage(langId);
     if (onTranslate) {
       setIsTranslating(true);
-      try {
-        await onTranslate(langId, rawPrompt);
-      } finally {
-        setIsTranslating(false);
-      }
+      try { await onTranslate(langId, rawPrompt); }
+      finally { setIsTranslating(false); }
     }
   };
 
-  // Trilingual Disclaimers
   const disclaimers = {
     en: "⚖️ STATUTORY NOTICE: This analysis provides statutory compliance and prior-art information and does not constitute formal legal advice.",
     hi: "⚖️ वैधानिक सूचना: यह विश्लेषण वैधानिक अनुपालन और पूर्व-कला की जानकारी प्रदान करता है, यह औपचारिक कानूनी सलाह नहीं है।",
-    mr: "⚖️ वैधानिक सूचना: हे विश्लेषण वैधानिक अनुपालन आणि पूर्व-कला माहिती प्रदान करते, हा औपचारिक कायदेशीर सल्ला नाही."
+    mr: "⚖️ वैधानिक सूचना: हे विश्लेषण वैधानिक अनुपालन आणि पूर्व-कला माहिती प्रदान करते, हा औपचारिक कायदेशीर सल्ला नाही.",
   };
 
+  const allTabs = [
+    ...TABS,
+    ...(selectedLanguage !== "en" ? [{ id: "glossary", label: "📖 Glossary", shortLabel: "📖 Glossary" }] : []),
+    ...(alternatives.length > 0   ? [{ id: "alternatives", label: "🔀 Alternatives", shortLabel: "🔀 Alts" }] : []),
+  ];
+
   return (
-    <div className="output-screen-entrance w-full max-w-5xl mx-auto px-4 py-2 select-none">
+    <div className="output-screen-entrance w-full space-y-4">
 
-      {/* Top Banner Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span
-              className="text-[9px] sm:text-[10px] font-black tracking-[0.2em] text-[#C93636] uppercase"
-              style={{ fontFamily: "'Press Start 2P', monospace" }}
-            >
-              ♠ 5/5 AGENT COUNCIL DELIVERED ♠
-            </span>
-
-            {/* Layer 8: Quantitative Confidence Badge */}
-            <span className={`text-[8px] font-mono px-2 py-0.5 rounded font-bold uppercase ${confidenceRating === "HIGH" ? "bg-emerald-800 text-emerald-100 border border-emerald-500" :
-              confidenceRating === "MEDIUM" ? "bg-amber-800 text-amber-100 border border-amber-500" :
-                "bg-red-800 text-red-100 border border-red-500"
-              }`}>
-              CONFIDENCE: {confidence} ({confidenceRating})
-            </span>
-
-            {/* Layer 5: Detected Jurisdiction Pill */}
-            <span className="text-[7.5px] font-mono px-2 py-0.5 bg-[#171717] text-[#FFF8E7] rounded font-bold uppercase">
-              JURISDICTION: {detectedJurisdiction.toUpperCase()}
-            </span>
-          </div>
-
-          <h2
-            className="text-base sm:text-lg font-black text-[#171717] tracking-tight uppercase"
-            style={{ fontFamily: "'Press Start 2P', monospace" }}
-          >
-            House Of Cards - IPSAKTI
-          </h2>
-        </div>
-
-        {/* Action Controls & Layer 9 Language Switcher */}
-        <div className="flex items-center gap-2 flex-wrap">
-
-          {/* Layer 9: Trilingual Language Switcher */}
-          <div className="flex items-center bg-[#171717]/10 p-0.5 rounded border border-[#171717]/30">
-            {[
-              { id: "en", label: "EN" },
-              { id: "hi", label: "हिन्दी" },
-              { id: "mr", label: "मराठी" },
-            ].map(lang => (
-              <button
-                key={lang.id}
-                onClick={() => handleLanguageChange(lang.id)}
-                disabled={isTranslating}
-                className={`px-2 py-1 text-[8px] font-bold rounded transition-all cursor-pointer ${
-                  selectedLanguage === lang.id
-                    ? "bg-[#171717] text-[#FFF8E7] shadow-sm font-black"
-                    : "text-black/60 hover:text-black"
-                } disabled:opacity-50 disabled:cursor-wait`}
-              >
-                {isTranslating && selectedLanguage === lang.id ? "..." : lang.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={handleCopy}
-            className="
-              px-2.5 py-1.5 bg-[#FFF8E7] hover:bg-white
-              text-[#171717] text-[8px] font-bold tracking-wider uppercase
-              border-2 border-[#171717] rounded
-              shadow-[2px_2px_0px_rgba(23,23,23,0.15)]
-              hover:-translate-y-0.5 active:translate-y-0
-              transition-all flex items-center gap-1 cursor-pointer
-            "
-            style={{ fontFamily: "'Press Start 2P', monospace" }}
-          >
-            <span>{copied ? "✓" : "📋"}</span>
-            {copied ? "COPIED" : "COPY"}
-          </button>
-
-          <button
-            onClick={onReset}
-            className="
-              px-3 py-1.5 bg-[#171717] hover:bg-[#C93636]
-              text-[#FFF8E7] text-[8px] font-bold tracking-wider uppercase
-              border-2 border-[#171717] hover:border-[#C93636] rounded
-              shadow-[2px_2px_0px_rgba(23,23,23,0.18)]
-              hover:-translate-y-0.5 active:translate-y-0
-              transition-all flex items-center gap-1 cursor-pointer
-            "
-            style={{ fontFamily: "'Press Start 2P', monospace" }}
-          >
-            <span className="text-red-400 text-[7px]">♠</span>
-            NEW DEAL
-          </button>
-        </div>
-      </div>
-
-      {/* Prompt Objective Banner & Layer 5 Jurisdiction Stream Filter */}
-      <div className="bg-[#171717]/5 border-2 border-[#171717]/25 rounded-md p-3 mb-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[8px] font-black uppercase tracking-widest text-[#171717]/70" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-              ♦ PROMPT OBJECTIVE:
-            </span>
-          </div>
-
-          {/* Layer 5: Jurisdiction Stream Filter Tabs */}
-          <div className="flex items-center gap-1">
-            <span className="text-[7.5px] font-bold font-mono text-black/50 mr-1">FILTER REGIME:</span>
-            {[
-              { id: "All", label: "ALL" },
-              { id: "India", label: "🇮🇳 INDIA" },
-              { id: "International", label: "🌐 INTL" },
-            ].map(j => (
-              <button
-                key={j.id}
-                onClick={() => setSelectedJurisdiction(j.id)}
-                className={`px-1.5 py-0.5 text-[7.5px] font-mono rounded font-bold border transition-all cursor-pointer ${selectedJurisdiction === j.id
-                  ? "bg-[#C93636] text-[#FFF8E7] border-[#C93636]"
-                  : "bg-white/80 text-black/60 border-black/20 hover:bg-white"
-                  }`}
-              >
-                {j.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <p className="text-xs font-mono text-[#171717] font-bold leading-relaxed mb-1">
-          "{rawPrompt}"
+      {/* ══ 1. AGENT COUNCIL STRIP ══ */}
+      <div>
+        <p
+          className="text-[8px] font-black tracking-[0.2em] text-[#C93636] uppercase mb-2 flex items-center gap-1.5"
+          style={{ fontFamily: "'Press Start 2P', monospace" }}
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+          5/5 AGENT COUNCIL DELIVERED
         </p>
-
-        {matchedPrompt && matchedPrompt !== rawPrompt && (
-          <div className="pt-1.5 border-t border-[#171717]/10 flex items-start gap-2">
-            <span className="text-[8px] font-bold text-[#C93636] uppercase font-mono mt-0.5">
-              ♠ MATCHED PATTERN:
-            </span>
-            <p className="text-[11px] font-mono text-black/75 italic leading-snug">
-              "{matchedPrompt}"
-            </p>
-          </div>
-        )}
+        <AgentStrip agents={agents} />
       </div>
 
-      {/* 5 Participating Dynamic Agents Ribbon */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-3">
-        {agents.map((agent, i) => (
-          <div
-            key={i}
-            className="
-              bg-[#FFF8E7] border-2 border-[#171717] rounded
-              p-2 shadow-[3px_3px_0px_rgba(23,23,23,0.1)]
-              flex flex-col justify-between relative overflow-hidden
-              transition-transform hover:-translate-y-0.5
-            "
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className={`text-xs font-black ${agent.color || "text-[#171717]"}`}>{agent.suit || "♠"}</span>
-              <span className="text-[6px] font-mono px-1 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-600 rounded font-bold">
-                ACTIVE
-              </span>
-            </div>
-            <p className="text-[8px] font-black text-[#171717] uppercase tracking-wide truncate" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-              {agent.name}
-            </p>
-            <p className="text-[7px] font-mono text-black/60 tracking-tight mt-0.5 truncate font-bold">
-              {agent.role}
-            </p>
-          </div>
-        ))}
-      </div>
+      {/* ══ 2. META ROW ══ */}
+      <MetaRow
+        confidence={confidence}
+        confidenceRating={confidenceRating}
+        category={category}
+        subcategory={subcategory}
+        jurisdiction={detectedJurisdiction}
+        hash={hash}
+      />
 
-      {/* Main Output Canvas Container */}
-      <div
-        className="
-          bg-[#FFF8E7] border-[3px] border-[#171717] rounded-lg
-          shadow-[6px_8px_0px_rgba(23,23,23,0.18)]
-          overflow-hidden flex flex-col relative
-        "
-      >
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center justify-between border-b-2 border-[#171717] bg-[#171717]/5 px-3 py-2 gap-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {[
-              { id: "solution", label: "♠ SOLUTION & STRATEGY", icon: "♠" },
-              { id: "deliverable", label: `♦ ${tabTitle}`, icon: "♦" },
-              { id: "verification", label: "🛡️ QA & STATUTORY CHECKS", icon: "🛡️" },
-              { id: "logs", label: "♣ COUNCIL LOGS", icon: "♣" },
-              ...(selectedLanguage !== "en" ? [{ id: "glossary", label: "📖 GLOSSARY", icon: "📖" }] : []),
-              ...(alternatives.length > 0 ? [{ id: "alternatives", label: "♥ ALTERNATIVES", icon: "♥" }] : []),
-            ].map((tab) => (
+      {/* ══ 3. MAIN OUTPUT CANVAS ══ */}
+      <div className="bg-[#131722]/95 border-2 border-white/15 rounded-xl shadow-card-lg overflow-hidden backdrop-blur-md">
+
+        {/* Tab bar + controls */}
+        <div className="flex flex-wrap items-center justify-between border-b border-white/10 bg-white/[0.02] px-4 py-2 gap-2">
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {allTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  px-2.5 py-1 text-[8px] font-bold tracking-wider uppercase rounded
+                  px-2.5 py-1 text-[8px] font-black tracking-wider uppercase rounded
                   border transition-all cursor-pointer whitespace-nowrap
                   ${activeTab === tab.id
-                    ? "bg-[#171717] text-[#FFF8E7] border-[#171717] shadow-[2px_2px_0px_rgba(23,23,23,0.2)]"
-                    : "bg-transparent text-black/60 border-transparent hover:bg-black/5"
+                    ? "bg-emerald-500 text-white border-emerald-400 shadow-[0_2px_10px_rgba(16,185,129,0.4)]"
+                    : "bg-transparent text-white/50 border-transparent hover:bg-white/5 hover:text-white/90"
                   }
                 `}
                 style={{ fontFamily: "'Press Start 2P', monospace" }}
               >
-                {tab.label}
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.shortLabel}</span>
               </button>
             ))}
           </div>
 
-          <div className="hidden sm:flex items-center gap-1 text-[7px] font-mono text-black/40">
-            <span>HASH: {hash}</span>
+          {/* Right controls */}
+          <div className="flex items-center gap-1.5">
+
+            {/* Language switcher */}
+            <div className="flex items-center bg-[#0F1219] p-0.5 rounded border border-white/10">
+              {[{ id: "en", label: "EN" }, { id: "hi", label: "हि" }, { id: "mr", label: "म" }].map((lang) => (
+                <button
+                  key={lang.id}
+                  onClick={() => handleLanguageChange(lang.id)}
+                  disabled={isTranslating}
+                  className={`px-2 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer ${
+                    selectedLanguage === lang.id
+                      ? "bg-[#1E2536] text-white shadow-sm font-black border border-white/10"
+                      : "text-white/50 hover:text-white"
+                  } disabled:opacity-40`}
+                >
+                  {isTranslating && selectedLanguage === lang.id ? "…" : lang.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Jurisdiction filter */}
+            <div className="flex items-center gap-1">
+              {[{ id: "All", label: "ALL" }, { id: "India", label: "🇮🇳" }, { id: "International", label: "🌐" }].map(j => (
+                <button
+                  key={j.id}
+                  onClick={() => setSelectedJurisdiction(j.id)}
+                  className={`px-1.5 py-0.5 text-[8px] font-mono rounded font-bold border transition-all cursor-pointer ${
+                    selectedJurisdiction === j.id
+                      ? "bg-emerald-500 text-white border-emerald-400"
+                      : "bg-[#161B26] text-white/50 border-white/10 hover:text-white hover:bg-[#1E2536]"
+                  }`}
+                >
+                  {j.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Copy */}
+            <button
+              onClick={handleCopy}
+              id="copy-output-btn"
+              className="
+                px-2.5 py-1 bg-[#1C212E] hover:bg-[#252C3D]
+                text-white/90 text-[8px] font-bold tracking-wider uppercase
+                border border-white/15 hover:border-white/30 rounded
+                shadow-sm hover:-translate-y-0.5 active:translate-y-0
+                transition-all cursor-pointer
+              "
+              style={{ fontFamily: "'Press Start 2P', monospace" }}
+            >
+              {copied ? "✓ COPIED" : "COPY"}
+            </button>
           </div>
         </div>
 
-        {/* Tab Content Display */}
-        <div className="p-4 sm:p-5 max-h-[420px] overflow-y-auto font-mono text-xs text-[#171717] leading-relaxed">
+        {/* ─── Tab content ─── */}
+        <div className="p-5 max-h-[520px] overflow-y-auto text-[#F1F3F9] leading-relaxed">
 
-          {/* Translating Status Indicator */}
+          {/* Translating overlay */}
           {isTranslating && (
-            <div className="mb-3 p-2.5 bg-[#171717] text-[#FFF8E7] rounded border border-[#C93636] flex items-center justify-between animate-pulse shadow-md">
-              <div className="flex items-center gap-2">
-                <span className="text-[#C93636] text-xs font-black">♠</span>
-                <span className="text-[9px] font-mono tracking-wider font-bold">
-                  GROQ LPU MULTI-AGENT COMPILER: TRANSLATING DOSSIER TO {selectedLanguage === "hi" ? "HINDI (हिन्दी)" : selectedLanguage === "mr" ? "MARATHI (मराठी)" : "ENGLISH"}...
-                </span>
-              </div>
-              <span className="text-[7.5px] font-mono text-emerald-400 font-bold">5 AGENTS ACTIVE</span>
+            <div className="mb-4 p-3 bg-[#0B0D12] text-white rounded border border-emerald-500/40 flex items-center gap-2 animate-pulse">
+              <span className="suit-spin text-emerald-400">✦</span>
+              <span className="text-[9px] font-mono tracking-wider font-bold">
+                TRANSLATING TO {selectedLanguage === "hi" ? "HINDI" : "MARATHI"}...
+              </span>
+              <span className="ml-auto text-[8px] text-emerald-400 font-bold">5 AGENTS ACTIVE</span>
             </div>
           )}
 
-          {/* TAB 1: Direct Comprehensive Solution & Strategy */}
+          {/* ── TAB: SOLUTION ── */}
           {activeTab === "solution" && (
-            <div className="space-y-3.5">
-              <div className="p-3.5 bg-amber-50/70 border border-amber-900/20 rounded">
-                <span className="text-[9px] font-black tracking-widest text-[#C93636] uppercase block mb-2" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                  1. STRATEGIC & STATUTORY RESOLUTION ({agents[0]?.name || "Lead"} & {agents[1]?.name || "Specialist"})
+            <div className="space-y-4">
+
+              {/* Strategic overview */}
+              <div className="p-4 bg-[#181C28]/90 border border-white/10 rounded-lg">
+                <span
+                  className="text-[8px] font-black tracking-widest text-emerald-400 uppercase block mb-2"
+                  style={{ fontFamily: "'Press Start 2P', monospace" }}
+                >
+                  1. STRATEGIC & STATUTORY RESOLUTION
                 </span>
                 <MarkdownRenderer content={architecture.overview} />
               </div>
 
-              {/* Layer 6: Verified Citations Panel */}
+              {/* Citations */}
               {allCitations.length > 0 && (
-                <div className="p-3 bg-emerald-50/80 border border-emerald-900/25 rounded">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-emerald-800 font-black text-[9px] uppercase tracking-wider" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                      ⚖️ VERIFIED STATUTORY CITATIONS ({citations.length} SOURCES • {selectedJurisdiction.toUpperCase()})
+                <div className="p-4 bg-emerald-950/20 border border-emerald-500/25 rounded-lg">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <span
+                      className="text-[8px] font-black tracking-wider text-emerald-300 uppercase"
+                      style={{ fontFamily: "'Press Start 2P', monospace" }}
+                    >
+                      ⚖️ VERIFIED CITATIONS ({citations.length} • {selectedJurisdiction})
                     </span>
-                    <span className="text-[7.5px] font-mono bg-emerald-200/80 text-emerald-900 px-1.5 py-0.5 rounded font-bold">
-                      ANTI-HALLUCINATION GUARD ACTIVE
+                    <span className="text-[7px] font-mono bg-emerald-900/50 text-emerald-300 px-2 py-0.5 rounded font-bold uppercase border border-emerald-500/30">
+                      ANTI-HALLUCINATION ACTIVE
                     </span>
                   </div>
                   {citations.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {citations.map((c, i) => (
-                        <div key={i} className="p-2 bg-white border border-emerald-700/30 rounded text-[10px] font-sans">
-                          <div className="flex items-center justify-between mb-1">
-                            <strong className="text-emerald-950 font-bold">{c.title}</strong>
-                            <span className="text-[8px] font-mono px-1 py-0.2 bg-emerald-100 text-emerald-800 rounded font-bold">
-                              {c.jurisdiction}
-                            </span>
+                        <div key={i} className="p-3 bg-[#131722] border border-emerald-500/20 rounded-lg text-[10px]">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <strong className="text-emerald-200 text-[11px] font-bold">{c.title}</strong>
+                            <span className="text-[7px] font-mono px-1.5 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-500/30 rounded font-bold shrink-0">{c.jurisdiction}</span>
                           </div>
-                          <p className="text-black/70 text-[9.5px] line-clamp-2">{c.summary}</p>
+                          <p className="text-white/70 text-[9.5px] line-clamp-2 font-sans">{c.summary}</p>
                           {c.url && (
-                            <a href={c.url} target="_blank" rel="noreferrer" className="text-[8.5px] text-blue-700 hover:underline font-mono mt-1 block">
+                            <a href={c.url} target="_blank" rel="noreferrer" className="text-[8.5px] text-sky-400 hover:underline font-mono mt-1 block">
                               ↗ Portal Reference
                             </a>
                           )}
@@ -387,66 +362,62 @@ const OutputScreen = ({ prompt, matchedData, operator, onReset, onTranslate }) =
                       ))}
                     </div>
                   ) : (
-                    <div className="py-3 px-4 bg-amber-50/80 border border-amber-900/20 rounded text-center">
-                      <p className="text-[10px] font-mono text-amber-800 font-bold">
-                        ⚠️ No {selectedJurisdiction} sources matched for this query.
-                      </p>
-                      <p className="text-[9.5px] text-black/60 mt-1">
-                        Switch to <span className="font-bold">ALL</span> to see all retrieved citations, or try a more specific {selectedJurisdiction.toLowerCase()} query.
-                      </p>
-                      <button
-                        onClick={() => setSelectedJurisdiction("All")}
-                        className="mt-2 text-[8px] font-mono font-bold px-3 py-1 bg-[#171717] text-[#FFF8E7] rounded cursor-pointer hover:bg-[#C93636] transition-colors"
-                      >
-                        SHOW ALL SOURCES
+                    <div className="py-3 text-center">
+                      <p className="text-[10px] font-mono text-amber-300 font-bold">⚠ No {selectedJurisdiction} sources matched.</p>
+                      <button onClick={() => setSelectedJurisdiction("All")} className="mt-2 text-[8px] font-mono font-bold px-3 py-1 bg-[#1C212E] hover:bg-emerald-600 text-white rounded cursor-pointer border border-white/10 transition-colors">
+                        SHOW ALL
                       </button>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Insufficient Evidence Banner (Item 11) */}
+              {/* Insufficient evidence */}
               {insufficientEvidence && (
-                <div className="p-3 bg-amber-100 border-2 border-amber-600/40 rounded flex items-start gap-2">
-                  <span className="text-amber-700 text-base shrink-0">⚠️</span>
+                <div className="p-3 bg-amber-950/30 border-2 border-amber-500/40 rounded-lg flex items-start gap-2">
+                  <span className="text-amber-400 text-base shrink-0">⚠️</span>
                   <div>
-                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-wider" style={{ fontFamily: "'Press Start 2P', monospace" }}>Insufficient Authoritative Evidence</p>
-                    <p className="text-[11px] font-sans text-amber-900 mt-1">{insufficientEvidenceMessage}</p>
+                    <p className="text-[10px] font-black text-amber-300 uppercase tracking-wider" style={{ fontFamily: "'Press Start 2P', monospace" }}>Insufficient Evidence</p>
+                    <p className="text-[11px] font-sans text-amber-200/90 mt-1">{insufficientEvidenceMessage}</p>
                   </div>
                 </div>
               )}
 
-              {/* Multi-Agent Execution Graph */}
-              <div className="p-3 bg-blue-50/60 border border-blue-900/20 rounded">
-                <span className="text-[9px] font-black tracking-widest text-[#171717] uppercase block mb-2" style={{ fontFamily: "'Press Start 2P', monospace" }}>
+              {/* Multi-agent execution graph */}
+              <div className="p-4 bg-[#151926]/90 border border-blue-500/20 rounded-lg">
+                <span
+                  className="text-[8px] font-black tracking-widest text-[#F1F3F9] uppercase block mb-3"
+                  style={{ fontFamily: "'Press Start 2P', monospace" }}
+                >
                   2. MULTI-AGENT EXECUTION GRAPH
                 </span>
-                <ul className="list-none pl-0 space-y-2">
+                <ol className="space-y-2">
                   {architecture.dataFlow.map((flow, i) => (
                     <li key={i} className="flex items-start gap-2 text-[11px] font-sans">
-                      <span className="text-[#C93636] font-black shrink-0 text-[10px] mt-0.5">♦</span>
+                      <span className="text-emerald-400 font-mono font-bold shrink-0 text-[10px] mt-0.5">▸</span>
                       <span>
-                        <strong className="text-[#171717] font-bold">{flow.name}:</strong>{" "}
+                        <strong className="text-white font-bold">{flow.name}:</strong>{" "}
                         <MarkdownRenderer content={flow.desc} className="inline [&>p]:inline [&>p]:m-0" />
                       </span>
                     </li>
                   ))}
-                </ul>
+                </ol>
               </div>
 
-              {/* Layer 8: Attorney Escalation Dossier Alert */}
+              {/* Escalation dossier */}
               {escalationDossier && (
-                <div className="p-3.5 bg-red-50 border-2 border-[#C93636]/40 rounded">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-red-600 font-bold text-xs">⚠️</span>
-                    <span className="text-[9px] font-black uppercase text-[#C93636] tracking-wider" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                      HUMAN ESCALATION RECOMMENDED: {escalationDossier.expertType}
+                <div className="p-4 bg-amber-950/25 border-2 border-amber-500/30 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-amber-400 font-bold">⚠️</span>
+                    <span
+                      className="text-[8px] font-black uppercase text-amber-300 tracking-wider"
+                      style={{ fontFamily: "'Press Start 2P', monospace" }}
+                    >
+                      ESCALATION RECOMMENDED: {escalationDossier.expertType}
                     </span>
                   </div>
-                  <p className="text-[10px] font-sans text-black/75 mb-2">
-                    Due to potential statutory exclusions or biological resource compliance requirements, consultation with a specialist is advised.
-                  </p>
-                  <ul className="list-disc pl-4 space-y-1 text-[10px] font-sans text-black/85">
+                  <p className="text-[10px] font-sans text-amber-100/75 mb-2">Specialist consultation advised due to statutory exclusions or biological resource compliance requirements.</p>
+                  <ul className="list-disc pl-4 space-y-1 text-[10px] font-sans text-amber-100/85">
                     {escalationDossier.keyQuestions?.map((q, idx) => (
                       <li key={idx}><strong>Key Question:</strong> {q}</li>
                     ))}
@@ -456,269 +427,208 @@ const OutputScreen = ({ prompt, matchedData, operator, onReset, onTranslate }) =
             </div>
           )}
 
-          {/* TAB 2: ADAPTIVE DELIVERABLE (Code Terminal vs. Editorial Parchment Dossier) */}
+          {/* ── TAB: DELIVERABLE ── */}
           {activeTab === "deliverable" && (
             <div>
               {deliverableType === "code" ? (
-                <div className="bg-[#171717] text-[#FFF8E7] p-4 rounded-md overflow-x-auto text-[11px] font-mono leading-relaxed border border-black shadow-inner">
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-emerald-400">
-                    <span>// Generated by {agents[3]?.name || "Qwen 3.6"} ({agents[3]?.role || "EXECUTOR"}) on Groq LPUs</span>
-                    <span className="text-[8px] text-white/40">100% PRODUCTION READY</span>
+                <div className="bg-[#090B10] text-[#F1F3F9] p-4 rounded-lg overflow-x-auto text-[11px] font-mono leading-relaxed border border-white/10 shadow-inner">
+                  <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10 text-emerald-400 text-[9px]">
+                    <span>// Generated by {agents[3]?.name || "Executor"} ({agents[3]?.role || "EXECUTOR"})</span>
+                    <span className="text-white/40">PRODUCTION READY</span>
                   </div>
-                  <pre className="whitespace-pre font-mono text-[11px] text-emerald-300">{deliverableContent}</pre>
+                  <pre className="whitespace-pre-wrap font-mono text-[11px] text-emerald-300">{deliverableContent}</pre>
                 </div>
               ) : (
-                <div className="bg-[#FFFDF7] border-2 border-[#171717]/25 rounded-md p-4 sm:p-5 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b-2 border-[#171717]/15">
+                <div className="bg-[#151925]/90 border border-white/10 rounded-lg p-5 shadow-sm">
+                  <div className="flex items-center justify-between gap-2 pb-3 mb-4 border-b border-white/10">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm">♦</span>
-                      <span className="text-[9px] font-black uppercase tracking-wider text-[#171717]" style={{ fontFamily: "'Press Start 2P', monospace" }}>
+                      <span className="text-sm text-emerald-400">📦</span>
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[#F1F3F9]" style={{ fontFamily: "'Press Start 2P', monospace" }}>
                         EXECUTIVE DELIVERABLE DOSSIER
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[8px] font-mono px-2 py-0.5 bg-[#171717] text-[#FFF8E7] rounded font-bold uppercase">
-                        AUTHOR: {agents[3]?.name || "Executor"}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[7px] font-mono px-2 py-0.5 bg-[#0B0D12] text-white/80 border border-white/10 rounded font-bold uppercase">
+                        BY: {agents[3]?.name || "Executor"}
                       </span>
-                      <span className="text-[8px] font-mono px-2 py-0.5 bg-[#C93636] text-[#FFF8E7] rounded font-bold uppercase">
-                        STAMP: APPROVED
+                      <span className="text-[7px] font-mono px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-500/40 rounded font-bold uppercase">
+                        APPROVED
                       </span>
                     </div>
                   </div>
-
                   <MarkdownRenderer content={deliverableContent} />
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 3: 3-Tier QA & Statutory Verification Report */}
+          {/* ── TAB: VERIFICATION ── */}
           {activeTab === "verification" && (
             <div className="space-y-4">
-              {/* 3-Tier Header Banner */}
-              <div className="p-3.5 bg-gradient-to-r from-emerald-900 to-emerald-950 text-white rounded border border-emerald-700/50 shadow-sm">
+              {/* Header */}
+              <div className="p-4 bg-gradient-to-r from-emerald-950/90 to-emerald-900/60 text-white rounded-lg border border-emerald-500/30">
                 <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-                  <span className="text-[10px] font-black tracking-widest uppercase flex items-center gap-1.5" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                    🛡️ 3-TIER STATUTORY VERIFICATION PIPELINE ({agents[4]?.name || "Verifier"})
+                  <span
+                    className="text-[9px] font-black tracking-widest uppercase flex items-center gap-1.5"
+                    style={{ fontFamily: "'Press Start 2P', monospace" }}
+                  >
+                    🛡 3-TIER STATUTORY VERIFICATION ({agents[4]?.name || "Verifier"})
                   </span>
-                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded">
+                  <span className="text-[8px] font-mono px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded font-bold">
                     LAYER 7 FORMAL AUDIT
                   </span>
                 </div>
-                <p className="text-[11px] text-emerald-100/90 font-sans leading-relaxed">
-                  Rigorous statutory validation across <strong>Citation Authenticity</strong>, <strong>Legal Applicability ("Does this law apply here?")</strong>, and <strong>Conclusion Justification ("Does this law justify the AI's conclusion?")</strong>.
+                <p className="text-[11px] text-emerald-100/85 font-sans leading-relaxed">
+                  Validation across <strong>Citation Authenticity</strong>, <strong>Legal Applicability</strong>, and <strong>Conclusion Justification</strong>.
                 </p>
               </div>
 
-              {/* 3-Tier Gauge Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                {/* TIER 1 */}
-                <div className="p-3 bg-white border border-black/15 rounded shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[8px] font-mono font-bold text-black/50 uppercase">TIER 1: CITATION GUARD</span>
-                      <span className={`text-[8px] font-mono font-black px-1.5 py-0.2 rounded ${
-                        (threeTierVerification?.tier_1_citation_verification?.status || "PASSED") === "PASSED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                      }`}>
-                        {threeTierVerification?.tier_1_citation_verification?.status || "PASSED"}
-                      </span>
+              {/* 3 Verification Tiers */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  {
+                    tier: "TIER 1: CITATION GUARD",
+                    title: "Citation Authenticity",
+                    desc: "Validates official gazette statute references against active law manifests.",
+                    scoreKey: "tier_1_citation_verification",
+                    scoreLabel: "Soundness Score"
+                  },
+                  {
+                    tier: "TIER 2: APPLICABILITY GUARD",
+                    title: "Statutory Applicability",
+                    desc: "Validates subject-matter preconditions (\"Does this law apply here?\").",
+                    scoreKey: "tier_2_applicability_verification",
+                    scoreLabel: "Preconditions Met"
+                  },
+                  {
+                    tier: "TIER 3: JUSTIFICATION",
+                    title: "Conclusion Justification",
+                    desc: "Validates that advice logically follows from cited statutes.",
+                    scoreKey: "tier_3_conclusion_verification",
+                    scoreLabel: "Logic Validity"
+                  },
+                ].map(({ tier, title, desc, scoreKey, scoreLabel }, i) => {
+                  const tierData = threeTierVerification?.[scoreKey];
+                  const status = tierData?.status || "PASSED";
+                  const score = Math.round((tierData?.score || (i === 0 ? 0.95 : 1.0)) * 100);
+                  const isPassed = status === "PASSED";
+                  return (
+                    <div key={i} className="p-3 bg-[#151925] border border-white/10 rounded-lg shadow-sm flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[7px] font-mono font-bold text-white/40 uppercase">{tier}</span>
+                          <span className={`text-[7px] font-mono font-black px-1.5 py-0.5 rounded ${isPassed ? "bg-emerald-950/70 text-emerald-400 border border-emerald-500/40" : "bg-amber-950/70 text-amber-400 border border-amber-500/40"}`}>
+                            {status}
+                          </span>
+                        </div>
+                        <h5 className="text-[11px] font-black text-[#F1F3F9] mb-1">{title}</h5>
+                        <p className="text-[9.5px] text-white/60 font-sans">{desc}</p>
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-white/50">{scoreLabel}:</span>
+                        <span className="text-sm font-mono font-black text-emerald-400">{score}%</span>
+                      </div>
                     </div>
-                    <h5 className="text-[11px] font-black text-[#171717]">Citation Authenticity</h5>
-                    <p className="text-[9.5px] text-black/60 mt-0.5">Validates official gazette statute references against active law manifests.</p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-black/10 flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-black/70">Soundness Score:</span>
-                    <span className="text-xs font-mono font-black text-emerald-700">
-                      {Math.round((threeTierVerification?.tier_1_citation_verification?.score || 0.95) * 100)}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* TIER 2 */}
-                <div className="p-3 bg-white border border-black/15 rounded shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[8px] font-mono font-bold text-black/50 uppercase">TIER 2: APPLICABILITY GUARD</span>
-                      <span className={`text-[8px] font-mono font-black px-1.5 py-0.2 rounded ${
-                        (threeTierVerification?.tier_2_applicability_verification?.status || "PASSED") === "PASSED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                      }`}>
-                        {threeTierVerification?.tier_2_applicability_verification?.status || "PASSED"}
-                      </span>
-                    </div>
-                    <h5 className="text-[11px] font-black text-[#171717]">Statutory Applicability</h5>
-                    <p className="text-[9.5px] text-black/60 mt-0.5">Validates subject-matter preconditions ("Does this law apply here?").</p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-black/10 flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-black/70">Preconditions Met:</span>
-                    <span className="text-xs font-mono font-black text-emerald-700">
-                      {Math.round((threeTierVerification?.tier_2_applicability_verification?.score || 1.0) * 100)}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* TIER 3 */}
-                <div className="p-3 bg-white border border-black/15 rounded shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[8px] font-mono font-bold text-black/50 uppercase">TIER 3: LOGICAL JUSTIFICATION</span>
-                      <span className={`text-[8px] font-mono font-black px-1.5 py-0.2 rounded ${
-                        (threeTierVerification?.tier_3_conclusion_verification?.status || "PASSED") === "PASSED" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
-                      }`}>
-                        {threeTierVerification?.tier_3_conclusion_verification?.status || "PASSED"}
-                      </span>
-                    </div>
-                    <h5 className="text-[11px] font-black text-[#171717]">Conclusion Justification</h5>
-                    <p className="text-[9.5px] text-black/60 mt-0.5">Validates that legal advice logically follows from cited statutes.</p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-black/10 flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-black/70">Logic Validity:</span>
-                    <span className="text-xs font-mono font-black text-emerald-700">
-                      {Math.round((threeTierVerification?.tier_3_conclusion_verification?.score || 1.0) * 100)}%
-                    </span>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
 
-              {/* Tier 2 Applicability Breakdown Findings */}
+              {/* Tier 2 findings */}
               {threeTierVerification?.tier_2_applicability_verification?.findings?.length > 0 && (
-                <div className="p-3 bg-white border border-black/15 rounded shadow-sm space-y-2">
-                  <span className="text-[9px] font-black tracking-wider text-black/70 uppercase block" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                    📋 TIER 2: STATUTORY PRECONDITION AUDIT ("DOES THIS LAW APPLY HERE?")
+                <div className="p-3 bg-[#151925] border border-white/10 rounded-lg space-y-2">
+                  <span className="text-[8px] font-black tracking-wider text-white/70 uppercase block" style={{ fontFamily: "'Press Start 2P', monospace" }}>
+                    📋 TIER 2: STATUTORY PRECONDITION AUDIT
                   </span>
-                  <div className="space-y-2">
-                    {threeTierVerification.tier_2_applicability_verification.findings.map((f, i) => (
-                      <div key={i} className="p-2.5 bg-neutral-50 border border-black/10 rounded text-[10.5px]">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <strong className="text-[#171717]">{f.statute_title || f.statuteTitle || f.statute_code}</strong>
-                          <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                            {f.is_applicable || f.isApplicable ? "✓ APPLICABLE NEXUS" : "✗ NOT APPLICABLE"}
-                          </span>
-                        </div>
-                        <p className="text-black/70 text-[10px] mb-1.5">{f.applicability_rationale || f.rationale}</p>
-                        {(f.preconditions_met || f.preconditionsMet)?.length > 0 && (
-                          <div className="space-y-0.5">
-                            {(f.preconditions_met || f.preconditionsMet).map((pm, pidx) => (
-                              <div key={pidx} className="text-[9.5px] text-emerald-700 flex items-center gap-1 font-mono">
-                                <span>✔</span> <span>{pm}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                  {threeTierVerification.tier_2_applicability_verification.findings.map((f, i) => (
+                    <div key={i} className="p-2.5 bg-[#0F1219] border border-white/10 rounded text-[10.5px]">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <strong className="text-white">{f.statute_title || f.statuteTitle || f.statute_code}</strong>
+                        <span className="text-[7px] font-mono font-bold px-1.5 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-500/30 rounded">
+                          {f.is_applicable || f.isApplicable ? "✓ APPLICABLE" : "✗ N/A"}
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                      <p className="text-white/70 text-[10px] mb-1.5 font-sans">{f.applicability_rationale || f.rationale}</p>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Tier 3 Conclusion Justification Findings */}
-              {threeTierVerification?.tier_3_conclusion_verification?.validations?.length > 0 && (
-                <div className="p-3 bg-white border border-black/15 rounded shadow-sm space-y-2">
-                  <span className="text-[9px] font-black tracking-wider text-black/70 uppercase block" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                    ⚖️ TIER 3: CONCLUSION JUSTIFICATION AUDIT ("DOES THIS LAW JUSTIFY THE ADVICE?")
-                  </span>
-                  <div className="space-y-2">
-                    {threeTierVerification.tier_3_conclusion_verification.validations.map((v, i) => (
-                      <div key={i} className={`p-2.5 rounded border text-[10.5px] ${
-                        v.is_justified || v.isJustified ? "bg-emerald-50/50 border-emerald-300/60" : "bg-red-50/70 border-red-300/60"
-                      }`}>
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <strong className={v.is_justified || v.isJustified ? "text-emerald-950" : "text-red-950"}>
-                            {v.statutory_basis || v.statutoryBasis}
-                          </strong>
-                          <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                            v.is_justified || v.isJustified ? "bg-emerald-200 text-emerald-900" : "bg-red-200 text-red-900"
-                          }`}>
-                            {v.logical_status || v.logicalStatus || (v.is_justified ? "VALID_JUSTIFIED_DEDUCTION" : "STATUTORY_BAR_CONTRADICTION")}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-black/80 mb-1">
-                          <strong>Conclusion Asserted:</strong> {v.conclusion_statement || v.conclusionStatement}
-                        </p>
-                        <p className="text-[9.5px] text-black/60 font-sans">
-                          <strong>Legal Deduction Analysis:</strong> {v.legal_analysis || v.legalAnalysis}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Full Markdown Verification Report */}
-              <div className="p-3.5 bg-emerald-50/70 border border-emerald-900/25 rounded">
-                <span className="text-[9px] font-black tracking-widest text-emerald-800 uppercase block mb-2" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                  📝 DETAILED STATUTORY AUDIT & ASSERTION TRACE
+              {/* Full report */}
+              <div className="p-4 bg-emerald-950/20 border border-emerald-500/25 rounded-lg">
+                <span className="text-[8px] font-black tracking-widest text-emerald-300 uppercase block mb-2" style={{ fontFamily: "'Press Start 2P', monospace" }}>
+                  📝 DETAILED STATUTORY AUDIT
                 </span>
                 <MarkdownRenderer content={verificationReport} />
               </div>
             </div>
           )}
 
-          {/* TAB 4: Agent Council Telemetry Logs */}
+          {/* ── TAB: LOGS ── */}
           {activeTab === "logs" && (
-            <div className="space-y-2 text-[10px] font-mono">
-              <div className="pb-2 border-b border-black/10 text-black/50 text-[8px]">
-                CHRONOLOGICAL INFERENCE TRACE ACROSS 5 SPECIALIZED MODELS:
+            <div className="bg-[#090B0F] border border-white/10 rounded-lg p-4 space-y-2 text-[10px] font-mono shadow-inner">
+              <div className="pb-2 mb-2 border-b border-white/10 text-[8px] font-bold text-white/40 uppercase">
+                CHRONOLOGICAL INFERENCE TRACE — {logs.length} STEPS
               </div>
               {logs.map((log, i) => (
-                <div key={i} className="flex items-start gap-2 text-black/85">
-                  <span className="text-emerald-700 font-bold min-w-[45px]">[{log.time}]</span>
-                  <span className="text-[#C93636] font-black min-w-[130px]">[{log.tag}]</span>
-                  <span>{log.msg}</span>
+                <div key={i} className="flex items-start gap-3 text-white/85">
+                  <span className="text-emerald-400 font-bold min-w-[48px] shrink-0">[{log.time}]</span>
+                  <span className="text-emerald-400 font-bold min-w-[140px] shrink-0 truncate">[{log.tag}]</span>
+                  <span className="flex-1 text-white/75">{log.msg}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* TAB 5: Layer 9 Multilingual Glossary */}
+          {/* ── TAB: GLOSSARY ── */}
           {activeTab === "glossary" && selectedLanguage !== "en" && (
             <div className="space-y-3">
-              <span className="text-[9px] font-black uppercase text-[#171717]/70 block mb-2" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                📖 AYURVEDA & STATUTORY TERMINOLOGY GLOSSARY ({selectedLanguage === "hi" ? "हिन्दी" : "मराठी"})
+              <span
+                className="text-[8px] font-black uppercase text-white/70 block mb-3"
+                style={{ fontFamily: "'Press Start 2P', monospace" }}
+              >
+                📖 TERMINOLOGY GLOSSARY ({selectedLanguage === "hi" ? "हिन्दी" : "मराठी"})
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {(GLOSSARY_DICTIONARY[selectedLanguage] || []).map((item, idx) => (
-                  <div key={idx} className="p-2.5 bg-white border border-[#171717]/20 rounded shadow-sm">
-                    <strong className="text-xs text-[#C93636] block">{item.translation}</strong>
-                    <span className="text-[9px] font-bold text-black/70 block mb-1">({item.term})</span>
-                    <p className="text-[9.5px] text-black/60 font-sans">{item.desc}</p>
+                  <div key={idx} className="p-3 bg-[#151925] border border-white/10 rounded-lg shadow-sm">
+                    <strong className="text-xs text-emerald-400 block">{item.translation}</strong>
+                    <span className="text-[9px] font-bold text-white/60 block mb-1">({item.term})</span>
+                    <p className="text-[9.5px] text-white/70 font-sans">{item.desc}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* TAB 6: Alternative Matched Templates */}
+          {/* ── TAB: ALTERNATIVES ── */}
           {activeTab === "alternatives" && (
             <div className="space-y-3">
-              <p className="text-[9px] font-black uppercase text-[#171717]/70" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-                ♠ ALTERNATIVE ARCHETYPES:
+              <p className="text-[8px] font-black uppercase text-white/70 mb-2 flex items-center gap-1.5" style={{ fontFamily: "'Press Start 2P', monospace" }}>
+                <span>🔀</span> ALTERNATIVE ARCHETYPES
               </p>
               {alternatives.map((alt, i) => (
-                <div key={i} className="p-2.5 bg-white border border-[#171717]/20 rounded shadow-sm">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[8px] font-bold font-mono text-[#C93636]">
+                <div key={i} className="p-3 bg-[#151925] border border-white/10 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[8px] font-bold font-mono text-emerald-400">
                       #{alt.id} • {alt.category} ({alt.subcategory})
                     </span>
-                    <span className="text-[8px] font-mono font-bold bg-[#171717] text-[#FFF8E7] px-1.5 py-0.5 rounded">
+                    <span className="text-[8px] font-mono font-bold bg-[#0B0D12] text-white border border-white/10 px-1.5 py-0.5 rounded">
                       {(alt.confidence * 100).toFixed(1)}% Match
                     </span>
                   </div>
-                  <p className="text-[10px] font-mono text-black/80">
-                    "{alt.text}"
-                  </p>
+                  <p className="text-[10px] font-mono text-white/80">"{alt.text}"</p>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Layer 9 & 6: Statutory Disclaimer & Footer Bar */}
-        <div className="border-t border-[#171717]/15 bg-[#171717]/5 px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-1 text-[8px] font-mono text-black/60">
-          <span>{disclaimers[selectedLanguage] || disclaimers.en}</span>
-          <span className="font-bold">HOUSE OF CARDS • IPSAKTI ♠</span>
+        {/* ── Footer disclaimer ── */}
+        <div className="border-t border-white/10 bg-white/[0.02] px-5 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-1">
+          <span className="text-[8px] font-mono text-white/40">{disclaimers[selectedLanguage] || disclaimers.en}</span>
+          <span className="text-[8px] font-bold font-mono text-white/40 shrink-0">IP-SAKTI • PROBLEM COUNCIL ENGINE</span>
         </div>
       </div>
-
     </div>
   );
 };

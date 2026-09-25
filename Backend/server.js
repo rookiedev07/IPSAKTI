@@ -1,8 +1,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import connectDB from "./DB/connectDB.js";
-import authRoutes from "./Routes/authRoutes.js";
 import promptRoutes from "./Routes/promptRoutes.js";
 
 // Load environment variables
@@ -10,9 +8,6 @@ dotenv.config();
 
 // Initialize Express
 const app = express();
-
-// Connect to MongoDB
-connectDB();
 
 // Middlewares
 app.use(
@@ -25,14 +20,13 @@ app.use(
 app.use(express.json());
 
 // Routes
-app.use("/api/auth", authRoutes);
 app.use("/api/prompt", promptRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     status: "ok",
-    message: "House of Cards AI Orchestration API is operational ♠",
+    message: "IP-SAKTI Problem Solver API is operational",
     timestamp: new Date().toISOString(),
   });
 });
@@ -48,6 +42,6 @@ app.use((req, res) => {
 // Start Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`♠ House of Cards Backend running on port ${PORT}`);
-  console.log(`♠ Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`[OK] IP-SAKTI Backend running on port ${PORT}`);
+  console.log(`[OK] Health Check: http://localhost:${PORT}/api/health`);
 });
