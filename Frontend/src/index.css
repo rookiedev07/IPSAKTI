@@ -1,164 +1,81 @@
-/* =============================================
-   FONTS
-   ============================================= */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* =============================================
-   PAGE ENTRANCE
-   ============================================= */
-@keyframes pageEntrance {
-  0%   { opacity: 0; transform: translateY(18px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.page-entrance {
-  animation: pageEntrance 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+@layer base {
+  :root {
+    --bg-cream: #FBF9F5;
+    --text-charcoal: #1C1E1B;
+    --color-forest: #244B38;
+    --color-sage: #8FA89B;
+    --color-terracotta: #C86D51;
+  }
+
+  html, body {
+    background-color: #FBF9F5;
+    color: #1C1E1B;
+    font-family: 'Poppins', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  #root {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    background-color: #FBF9F5;
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(28, 30, 27, 0.15);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(28, 30, 27, 0.28);
+  }
 }
 
-/* =============================================
-   PROMPT PANEL — glow pulse while active
-   ============================================= */
-@keyframes promptGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-  50%       { box-shadow: 0 0 20px 2px rgba(16, 185, 129, 0.25); }
-}
-.prompt-focus-glow:focus-within {
-  animation: promptGlow 2s ease-in-out infinite;
+@layer utilities {
+  /* Prevent tap highlight on mobile */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
-/* =============================================
-   RESULTS PANEL — slides in from below
-   ============================================= */
-@keyframes resultsSlideIn {
-  0%   { opacity: 0; transform: translateY(28px) scale(0.98); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-.results-entrance {
-  animation: resultsSlideIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  will-change: transform, opacity;
+/* Subtle blinking caret for idle typing placeholder animation */
+@keyframes typing-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
-/* =============================================
-   AGENT PROGRESS ROWS — stagger in
-   ============================================= */
-@keyframes agentRowIn {
-  0%   { opacity: 0; transform: translateX(-12px); }
-  100% { opacity: 1; transform: translateX(0); }
-}
-.agent-row {
-  opacity: 0;
-  animation: agentRowIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--agent-delay, 0s);
-}
-
-/* =============================================
-   EXAMPLE CHIP — fade & rise
-   ============================================= */
-@keyframes chipIn {
-  0%   { opacity: 0; transform: translateY(8px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.chip-entrance {
-  opacity: 0;
-  animation: chipIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--chip-delay, 0s);
-}
-
-/* =============================================
-   HEADER — fade down
-   ============================================= */
-@keyframes headerIn {
-  0%   { opacity: 0; transform: translateY(-10px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.header-entrance {
-  animation: headerIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-/* =============================================
-   PROGRESS BAR — fill left to right
-   ============================================= */
-@keyframes progressFill {
-  0%   { width: 0%; }
-  100% { width: var(--progress-to, 100%); }
-}
-.progress-fill {
-  animation: progressFill 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--progress-delay, 0s);
-}
-
-/* =============================================
-   SPINNER — agent council loading
-   ============================================= */
-@keyframes suitSpin {
-  0%   { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-.suit-spin {
-  animation: suitSpin 1.4s linear infinite;
+.typing-cursor {
   display: inline-block;
+  width: 1.5px;
+  height: 1.05em;
+  background-color: #244B38;
+  margin-left: 2px;
+  vertical-align: -2px;
+  animation: typing-blink 0.9s infinite;
 }
 
-/* =============================================
-   PULSE DOT — active agent indicator
-   ============================================= */
-@keyframes pulseDot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.45; transform: scale(0.85); }
-}
-.pulse-dot {
-  animation: pulseDot 1.2s ease-in-out infinite;
-}
-
-/* =============================================
-   OUTPUT SCREEN — entrance
-   ============================================= */
-@keyframes outputScreenEntrance {
-  0%   { opacity: 0; transform: translateY(24px) scale(0.97); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-.output-screen-entrance {
-  animation: outputScreenEntrance 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  will-change: transform, opacity;
-}
-
-/* =============================================
-   BACKGROUND PATTERN — dark dot matrix texture
-   ============================================= */
-.dot-paper {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 0.8px, transparent 0.8px);
-  background-size: 8px 8px;
-}
-
-/* =============================================
-   CARD SHADOWS & DEPTH — sleek dark mode
-   ============================================= */
-.shadow-card {
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
-}
-.shadow-card-lg {
-  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1);
-}
-.shadow-card-hover:hover {
-  box-shadow: 0 14px 40px -4px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(16, 185, 129, 0.45);
-  transform: translateY(-2px);
-}
-
-/* =============================================
-   SCROLLBAR — minimal dark styling
-   ============================================= */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
-
-/* =============================================
-   SELECTION
-   ============================================= */
-::selection {
-  background: rgba(16, 185, 129, 0.35);
-  color: #FFFFFF;
+@media (prefers-reduced-motion: reduce) {
+  .typing-cursor {
+    animation: none;
+    opacity: 0.8;
+  }
 }
