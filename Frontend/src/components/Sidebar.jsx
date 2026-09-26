@@ -46,7 +46,9 @@ export default function Sidebar({
           w-60 xl:w-64 bg-[#F7F4EE] border-r border-[#E5DFD3]
           flex flex-col justify-between
           transition-transform duration-200 ease-in-out
-          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isMobileOpen
+            ? 'translate-x-0 pointer-events-auto visible'
+            : '-translate-x-full lg:translate-x-0 pointer-events-none lg:pointer-events-auto invisible lg:visible'}
           select-none shrink-0
         `}
       >
@@ -74,15 +76,17 @@ export default function Sidebar({
               </div>
             </button>
 
-            {/* Mobile close button */}
-            <button
-              type="button"
-              onClick={onCloseMobile}
-              className="p-1 rounded-lg text-charcoal-500 hover:text-charcoal-900 lg:hidden"
-              aria-label="Close navigation"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {/* Mobile close button — only visible when sidebar is open */}
+            {isMobileOpen && (
+              <button
+                type="button"
+                onClick={onCloseMobile}
+                className="p-1 rounded-lg text-charcoal-500 hover:text-charcoal-900 lg:hidden"
+                aria-label="Close navigation"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Nav List */}
