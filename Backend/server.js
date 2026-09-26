@@ -10,11 +10,29 @@ dotenv.config();
 const app = express();
 
 // Middlewares
+// Allowed origins: production Vercel URL + any Vercel preview deployments
+const ALLOWED_ORIGINS = [
+  process.env.FRONTEND_URL,           // e.g. https://ipsakti-two.vercel.app
+  "https://ipsakti-two.vercel.app",   // production fallback (no trailing slash)
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "*",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. curl, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+      // Allow any *.vercel.app preview URL or exact production match
+      if (
+        ALLOWED_ORIGINS.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS blocked: ${origin}`));
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    credentials: true,
   })
 );
 app.use(express.json());
