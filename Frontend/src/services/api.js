@@ -7,7 +7,7 @@ export async function checkBackendHealth() {
   try {
     const res = await fetch(`${BASE_URL}/api/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(60000), // 60s to handle Render free tier cold start
     });
     if (res.ok) {
       return await res.json();
